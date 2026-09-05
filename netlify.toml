@@ -1,10 +1,5 @@
 [build]
   command = "npm run build"
-  publish = ".next"
-
-[functions]
-  included_files = ["data/**", "public/**", "src/lib/seedData.json"]
-  external_node_modules = ["better-sqlite3"]
 
 [[headers]]
   for = "/*"

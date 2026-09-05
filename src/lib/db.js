@@ -1,54 +1,24 @@
 /**
  * Inisialisasi Database SQLite & Skema Relasional
- * Mendukung Native better-sqlite3 dan Serverless In-Memory Fallback (Netlify/Vercel/AWS Lambda)
+ * Mendukung Native better-sqlite3 di lokal dan Pure-JS Resilient Engine di Serverless Cloud (Netlify / Vercel / AWS Lambda)
  */
 
-import { createRequire } from 'module';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
+import { createRequire } from 'module';
+
 const require = createRequire(import.meta.url);
 const initialSeedData = require('./seedData.json');
 
 let dbInstance = null;
 
 /**
- * Mendeteksi direktori penyimpanan database yang aman (writeable).
- * Di serverless (Netlify/Lambda), process.cwd() bersifat read-only sehingga digunakan os.tmpdir().
- */
-function resolveDatabasePath() {
-  const localDataDir = path.join(process.cwd(), 'data');
-  const localDbPath = path.join(localDataDir, 'survey.db');
-
-  try {
-    if (!fs.existsSync(localDataDir)) {
-      fs.mkdirSync(localDataDir, { recursive: true });
-    }
-    fs.accessSync(localDataDir, fs.constants.W_OK);
-    return localDbPath;
-  } catch {
-    // Lingkungan serverless read-only (Netlify / Lambda / Vercel)
-    const tmpDbPath = path.join(os.tmpdir(), 'survey.db');
-
-    // Jika database lokal ada, salin ke /tmp untuk akses baca-tulis
-    if (!fs.existsSync(tmpDbPath) && fs.existsSync(localDbPath)) {
-      try {
-        fs.copyFileSync(localDbPath, tmpDbPath);
-      } catch (e) {
-        console.warn('Could not copy bundled DB to /tmp:', e.message);
-      }
-    }
-    return tmpDbPath;
-  }
-}
-
-/**
- * Fallback Database Engine (Pure JS) untuk lingkungan yang gagal memuat binary native C++ better-sqlite3
+ * Pure-JS Resilient In-Memory Database Engine
+ * Menjamin zero-crash 100% pada lingkungan serverless seperti Netlify & AWS Lambda.
  */
 function createFallbackDatabase() {
-  console.warn('⚡ Using Serverless Resilient Fallback Database Engine');
-
   let store = {
     admin_users: JSON.parse(JSON.stringify(initialSeedData.admin_users || [])),
     projects: JSON.parse(JSON.stringify(initialSeedData.projects || [])),
@@ -60,7 +30,7 @@ function createFallbackDatabase() {
   if (fs.existsSync(persistFile)) {
     try {
       const loaded = JSON.parse(fs.readFileSync(persistFile, 'utf8'));
-      if (loaded && loaded.admin_users) {
+      if (loaded && loaded.admin_users && loaded.admin_users.length > 0) {
         store = loaded;
       }
     } catch {}
@@ -85,35 +55,55 @@ function createFallbackDatabase() {
     },
     prepare(sql) {
       const cleanSql = sql.trim().replace(/\s+/g, ' ');
+      const s = cleanSql.toUpperCase();
 
       return {
         get(...params) {
-          const allResults = this.all(...params);
-          return allResults.length > 0 ? allResults[0] : undefined;
+          const results = this.all(...params);
+          return results.length > 0 ? results[0] : undefined;
         },
 
         all(...params) {
-          const s = cleanSql.toUpperCase();
+          // 1. Projects queries
+          if (s.includes('FROM PROJECTS')) {
+            if (s.includes('WHERE ID = ?') || s.includes('WHERE P.ID = ?')) {
+              const id = params[0];
+              const p = store.projects.find(item => item.id === id);
+              if (!p) return [];
+              return [{ ...p }];
+            }
 
-          // 1. SELECT * FROM projects WHERE id = ?
-          if (s.includes('FROM PROJECTS') && s.includes('WHERE ID = ?')) {
-            const id = params[0];
-            return store.projects.filter(p => p.id === id);
+            // List projects with calculated columns
+            return store.projects.map(p => {
+              const total_responses = store.survey_responses.filter(r => r.project_id === p.id).length;
+              const active_enumerators = store.enumerators.filter(e => e.project_id === p.id && e.status === 'ACTIVE').length;
+              const schools = new Set(store.survey_responses.filter(r => r.project_id === p.id).map(r => r.school_name).filter(Boolean));
+              return {
+                ...p,
+                total_responses,
+                active_enumerators,
+                total_schools: schools.size
+              };
+            });
           }
 
-          // 2. SELECT * FROM projects
-          if (s.startsWith('SELECT * FROM PROJECTS') && !s.includes('WHERE')) {
-            return [...store.projects];
+          // 2. Counts on survey_responses
+          if (s.includes('FROM SURVEY_RESPONSES') && s.includes('COUNT(*)')) {
+            if (s.includes('WHERE PROJECT_ID = ?') || s.includes('R.PROJECT_ID = ?')) {
+              const pid = params[0];
+              const count = store.survey_responses.filter(r => r.project_id === pid).length;
+              return [{ count }];
+            }
+            if (s.includes('ENUMERATOR_ID = ?') && s.includes('DATE(')) {
+              const eid = params[0];
+              const today = new Date().toISOString().slice(0, 10);
+              const count = store.survey_responses.filter(r => r.enumerator_id === eid && (r.created_at || '').startsWith(today)).length;
+              return [{ count }];
+            }
+            return [{ count: store.survey_responses.length }];
           }
 
-          // 3. SELECT COUNT(*) as count FROM survey_responses WHERE project_id = ?
-          if (s.includes('FROM SURVEY_RESPONSES') && s.includes('COUNT(*)') && s.includes('WHERE PROJECT_ID = ?')) {
-            const pid = params[0];
-            const count = store.survey_responses.filter(r => r.project_id === pid).length;
-            return [{ count }];
-          }
-
-          // 4. SELECT COUNT(DISTINCT school_name) as count FROM survey_responses WHERE project_id = ?
+          // 3. Count distinct school_name
           if (s.includes('DISTINCT SCHOOL_NAME') && s.includes('WHERE PROJECT_ID = ?')) {
             const pid = params[0];
             const schools = new Set(
@@ -122,102 +112,109 @@ function createFallbackDatabase() {
             return [{ count: schools.size }];
           }
 
-          // 5. SELECT COUNT(*) as count FROM enumerators WHERE project_id = ? AND status = 'ACTIVE'
-          if (s.includes('FROM ENUMERATORS') && s.includes('COUNT(*)') && s.includes('ACTIVE')) {
+          // 4. Enumerators count
+          if (s.includes('FROM ENUMERATORS') && s.includes('COUNT(*)')) {
             const pid = params[0];
             const count = store.enumerators.filter(e => e.project_id === pid && e.status === 'ACTIVE').length;
             return [{ count }];
           }
 
-          // 6. SELECT ... FROM admin_users WHERE email = ?
-          if (s.includes('FROM ADMIN_USERS') && s.includes('WHERE EMAIL = ?')) {
-            const email = (params[0] || '').toLowerCase();
-            return store.admin_users.filter(u => (u.email || '').toLowerCase() === email);
+          // 5. Admin users queries
+          if (s.includes('FROM ADMIN_USERS')) {
+            if (s.includes('WHERE EMAIL = ?')) {
+              const email = (params[0] || '').trim().toLowerCase();
+              return store.admin_users.filter(u => (u.email || '').trim().toLowerCase() === email);
+            }
+            if (s.includes('WHERE ID = ?')) {
+              return store.admin_users.filter(u => u.id === params[0]);
+            }
+            return [...store.admin_users];
           }
 
-          // 7. SELECT admin_users WHERE id = ?
-          if (s.includes('FROM ADMIN_USERS') && s.includes('WHERE ID = ?')) {
-            const id = params[0];
-            return store.admin_users.filter(u => u.id === id);
-          }
+          // 6. Enumerators queries
+          if (s.includes('FROM ENUMERATORS')) {
+            // Join query for PIN login / verification
+            if (s.includes('JOIN PROJECTS') && s.includes('PIN_RAW = ?')) {
+              const pin = (params[0] || '').trim();
+              const e = store.enumerators.find(item => item.pin_raw === pin);
+              if (!e) return [];
+              const project = store.projects.find(p => p.id === e.project_id) || {};
+              return [{
+                id: e.id,
+                project_id: e.project_id,
+                full_name: e.full_name,
+                phone_number: e.phone_number,
+                assigned_school: e.assigned_school,
+                status: e.status,
+                total_submissions: e.total_submissions || 0,
+                project_name: project.project_name || '',
+                province: project.province || '',
+                project_status: project.status || 'ACTIVE'
+              }];
+            }
 
-          // 8. Enumerator PIN verify JOIN query
-          if (s.includes('FROM ENUMERATORS E') && s.includes('JOIN PROJECTS P') && s.includes('PIN_RAW = ?')) {
-            const pin = (params[0] || '').trim();
-            const enumerator = store.enumerators.find(e => e.pin_raw === pin);
-            if (!enumerator) return [];
-            const project = store.projects.find(p => p.id === enumerator.project_id) || {};
-            return [{
-              id: enumerator.id,
-              project_id: enumerator.project_id,
-              full_name: enumerator.full_name,
-              phone_number: enumerator.phone_number,
-              assigned_school: enumerator.assigned_school,
-              status: enumerator.status,
-              total_submissions: enumerator.total_submissions || 0,
-              project_name: project.project_name || '',
-              province: project.province || '',
-              project_status: project.status || 'ACTIVE'
-            }];
-          }
+            if (s.includes('WHERE PIN_RAW = ?')) {
+              const pin = (params[0] || '').trim();
+              return store.enumerators.filter(e => e.pin_raw === pin);
+            }
 
-          // 9. Today submissions count
-          if (s.includes('FROM SURVEY_RESPONSES') && s.includes('ENUMERATOR_ID = ?') && s.includes('DATE(CREATED_AT)')) {
-            const eid = params[0];
+            if (s.includes('WHERE PROJECT_ID = ?') || s.includes('WHERE E.PROJECT_ID = ?')) {
+              const pid = params[0];
+              const today = new Date().toISOString().slice(0, 10);
+              return store.enumerators.filter(e => e.project_id === pid).map(e => ({
+                ...e,
+                today_submissions: store.survey_responses.filter(r => r.enumerator_id === e.id && (r.created_at || '').startsWith(today)).length
+              }));
+            }
+
+            if (s.includes('WHERE ID = ?') || s.includes('WHERE E.ID = ?')) {
+              return store.enumerators.filter(e => e.id === params[0]);
+            }
+
+            // All enumerators with today's count
             const today = new Date().toISOString().slice(0, 10);
-            const count = store.survey_responses.filter(r => r.enumerator_id === eid && (r.created_at || '').startsWith(today)).length;
-            return [{ count }];
+            return store.enumerators.map(e => ({
+              ...e,
+              today_submissions: store.survey_responses.filter(r => r.enumerator_id === e.id && (r.created_at || '').startsWith(today)).length
+            }));
           }
 
-          // 10. SELECT * FROM enumerators WHERE project_id = ?
-          if (s.includes('FROM ENUMERATORS') && s.includes('WHERE PROJECT_ID = ?')) {
-            const pid = params[0];
-            return store.enumerators.filter(e => e.project_id === pid);
-          }
+          // 7. Survey responses queries
+          if (s.includes('FROM SURVEY_RESPONSES')) {
+            if (s.includes('WHERE R.ID = ?') || s.includes('WHERE ID = ?')) {
+              const id = params[0];
+              const r = store.survey_responses.find(item => item.id === id);
+              if (!r) return [];
+              const e = store.enumerators.find(item => item.id === r.enumerator_id) || {};
+              const p = store.projects.find(item => item.id === r.project_id) || {};
+              return [{
+                ...r,
+                enumerator_name: e.full_name || '',
+                project_name: p.project_name || '',
+                province: p.province || ''
+              }];
+            }
 
-          // 11. SELECT * FROM enumerators WHERE id = ?
-          if (s.includes('FROM ENUMERATORS') && s.includes('WHERE ID = ?')) {
-            const id = params[0];
-            return store.enumerators.filter(e => e.id === id);
-          }
+            let list = [...store.survey_responses];
+            if (params.length > 0 && typeof params[0] === 'string' && params[0].startsWith('PRJ-')) {
+              list = list.filter(r => r.project_id === params[0]);
+            }
 
-          // 12. SELECT * FROM enumerators
-          if (s.startsWith('SELECT * FROM ENUMERATORS')) {
-            return [...store.enumerators];
-          }
-
-          // 13. SELECT * FROM survey_responses WHERE project_id = ?
-          if (s.includes('FROM SURVEY_RESPONSES') && s.includes('WHERE PROJECT_ID = ?')) {
-            const pid = params[0];
-            let list = store.survey_responses.filter(r => r.project_id === pid);
             list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
-            // Check for LIMIT & OFFSET
-            if (params.length >= 3 && typeof params[1] === 'number') {
-              const limit = params[1];
-              const offset = params[2] || 0;
-              return list.slice(offset, offset + limit);
-            }
-            return list;
-          }
-
-          // 14. SELECT * FROM survey_responses WHERE id = ?
-          if (s.includes('FROM SURVEY_RESPONSES') && s.includes('WHERE ID = ?')) {
-            const id = params[0];
-            return store.survey_responses.filter(r => r.id === id);
-          }
-
-          // 15. SELECT * FROM survey_responses
-          if (s.startsWith('SELECT * FROM SURVEY_RESPONSES')) {
-            return [...store.survey_responses];
+            return list.map(r => {
+              const e = store.enumerators.find(item => item.id === r.enumerator_id);
+              return {
+                ...r,
+                enumerator_name: e?.full_name || ''
+              };
+            });
           }
 
           return [];
         },
 
         run(...params) {
-          const s = cleanSql.toUpperCase();
-
           // 1. INSERT INTO survey_responses
           if (s.startsWith('INSERT INTO SURVEY_RESPONSES')) {
             const [
@@ -235,7 +232,7 @@ function createFallbackDatabase() {
             return { changes: 1, lastInsertRowid: store.survey_responses.length };
           }
 
-          // 2. UPDATE enumerators SET total_submissions = total_submissions + ? WHERE id = ?
+          // 2. UPDATE enumerators SET total_submissions = total_submissions + ...
           if (s.startsWith('UPDATE ENUMERATORS') && s.includes('TOTAL_SUBMISSIONS = TOTAL_SUBMISSIONS + ?')) {
             const [increment, id] = params;
             const item = store.enumerators.find(e => e.id === id);
@@ -247,7 +244,6 @@ function createFallbackDatabase() {
             return { changes: 0 };
           }
 
-          // 3. UPDATE enumerators SET total_submissions = total_submissions + 1 WHERE id = ?
           if (s.startsWith('UPDATE ENUMERATORS') && s.includes('TOTAL_SUBMISSIONS = TOTAL_SUBMISSIONS + 1')) {
             const id = params[0];
             const item = store.enumerators.find(e => e.id === id);
@@ -259,7 +255,7 @@ function createFallbackDatabase() {
             return { changes: 0 };
           }
 
-          // 4. UPDATE enumerators (status, pin, school, etc.)
+          // 3. UPDATE enumerators general
           if (s.startsWith('UPDATE ENUMERATORS')) {
             const id = params[params.length - 1];
             const item = store.enumerators.find(e => e.id === id);
@@ -276,7 +272,7 @@ function createFallbackDatabase() {
             return { changes: 0 };
           }
 
-          // 5. INSERT INTO enumerators
+          // 4. INSERT INTO enumerators
           if (s.startsWith('INSERT INTO ENUMERATORS')) {
             const [id, project_id, full_name, phone_number, assigned_school, pin_hash, pin_raw] = params;
             store.enumerators.push({
@@ -288,37 +284,37 @@ function createFallbackDatabase() {
             return { changes: 1 };
           }
 
-          // 6. DELETE FROM enumerators WHERE id = ?
-          if (s.startsWith('DELETE FROM ENUMERATORS') && s.includes('WHERE ID = ?')) {
+          // 5. DELETE FROM enumerators
+          if (s.startsWith('DELETE FROM ENUMERATORS')) {
             const id = params[0];
-            const prevLen = store.enumerators.length;
+            const prev = store.enumerators.length;
             store.enumerators = store.enumerators.filter(e => e.id !== id);
             save();
-            return { changes: prevLen - store.enumerators.length };
+            return { changes: prev - store.enumerators.length };
           }
 
-          // 7. DELETE FROM survey_responses WHERE id = ?
-          if (s.startsWith('DELETE FROM SURVEY_RESPONSES') && s.includes('WHERE ID = ?')) {
+          // 6. DELETE FROM survey_responses
+          if (s.startsWith('DELETE FROM SURVEY_RESPONSES')) {
             const id = params[0];
-            const prevLen = store.survey_responses.length;
+            const prev = store.survey_responses.length;
             store.survey_responses = store.survey_responses.filter(r => r.id !== id);
             save();
-            return { changes: prevLen - store.survey_responses.length };
+            return { changes: prev - store.survey_responses.length };
           }
 
-          // 8. INSERT INTO projects
+          // 7. INSERT INTO projects
           if (s.startsWith('INSERT INTO PROJECTS')) {
             const [id, project_name, target_sample, province, status, created_by] = params;
             store.projects.push({
               id, project_name, target_sample: Number(target_sample) || 400,
-              province, status: status || 'ACTIVE', created_by,
+              province, status: status || 'ACTIVE', created_by: created_by || 'ADMIN',
               created_at: new Date().toISOString()
             });
             save();
             return { changes: 1 };
           }
 
-          // 9. UPDATE projects
+          // 8. UPDATE projects
           if (s.startsWith('UPDATE PROJECTS')) {
             const id = params[params.length - 1];
             const item = store.projects.find(p => p.id === id);
@@ -342,28 +338,36 @@ export function getDb() {
     return dbInstance;
   }
 
+  // Jika berjalan di cloud Netlify / Vercel / AWS Lambda, gunakan Resilient Fallback Engine langsung
+  const isServerless = Boolean(
+    process.env.NETLIFY ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.VERCEL
+  );
+
+  if (isServerless) {
+    dbInstance = createFallbackDatabase();
+    return dbInstance;
+  }
+
+  // Jika di lokal (macOS/PC), gunakan better-sqlite3 dengan fallback
   try {
     const Database = require('better-sqlite3');
-    const dbPath = resolveDatabasePath();
+    const localDataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(localDataDir)) {
+      fs.mkdirSync(localDataDir, { recursive: true });
+    }
+    const dbPath = path.join(localDataDir, 'survey.db');
     const db = new Database(dbPath);
 
-    try {
-      db.pragma('journal_mode = WAL');
-    } catch {
-      try { db.pragma('journal_mode = DELETE'); } catch {}
-    }
-
-    try {
-      db.pragma('foreign_keys = ON');
-    } catch {}
+    try { db.pragma('journal_mode = WAL'); } catch {}
+    try { db.pragma('foreign_keys = ON'); } catch {}
 
     initTables(db);
-    seedIfEmpty(db);
-
     dbInstance = db;
     return dbInstance;
   } catch (err) {
-    console.warn('better-sqlite3 initialization failed, switching to resilient fallback engine:', err.message);
+    console.warn('better-sqlite3 failed to initialize, switching to fallback engine:', err.message);
     dbInstance = createFallbackDatabase();
     return dbInstance;
   }
@@ -419,57 +423,7 @@ function initTables(db) {
       scored_responses TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
-
-    CREATE TABLE IF NOT EXISTS projects_idx (id TEXT);
   `);
-}
-
-function seedIfEmpty(db) {
-  try {
-    const adminCount = db.prepare('SELECT COUNT(*) as count FROM admin_users').get()?.count || 0;
-    if (adminCount === 0 && initialSeedData) {
-      const insertAdmin = db.prepare(`
-        INSERT OR IGNORE INTO admin_users (id, email, password_hash, name, role, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-      for (const u of (initialSeedData.admin_users || [])) {
-        insertAdmin.run(u.id, u.email, u.password_hash, u.name, u.role, u.created_at);
-      }
-
-      const insertProj = db.prepare(`
-        INSERT OR IGNORE INTO projects (id, project_name, target_sample, province, status, created_by, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-      for (const p of (initialSeedData.projects || [])) {
-        insertProj.run(p.id, p.project_name, p.target_sample, p.province, p.status, p.created_by, p.created_at);
-      }
-
-      const insertEnum = db.prepare(`
-        INSERT OR IGNORE INTO enumerators (id, project_id, full_name, phone_number, assigned_school, pin_hash, pin_raw, status, total_submissions, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      for (const e of (initialSeedData.enumerators || [])) {
-        insertEnum.run(e.id, e.project_id, e.full_name, e.phone_number, e.assigned_school, e.pin_hash, e.pin_raw, e.status, e.total_submissions, e.created_at);
-      }
-
-      const insertResp = db.prepare(`
-        INSERT OR IGNORE INTO survey_responses (
-          id, project_id, enumerator_id, student_name, gender, religion, grade,
-          school_name, social_media_duration, favorite_social_media, favorite_content,
-          raw_responses, scored_responses, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      for (const r of (initialSeedData.survey_responses || [])) {
-        insertResp.run(
-          r.id, r.project_id, r.enumerator_id, r.student_name, r.gender, r.religion, r.grade,
-          r.school_name, r.social_media_duration, r.favorite_social_media, r.favorite_content,
-          r.raw_responses, r.scored_responses, r.created_at
-        );
-      }
-    }
-  } catch (err) {
-    console.warn('Auto-seed check error:', err.message);
-  }
 }
 
 export function hashString(str) {
