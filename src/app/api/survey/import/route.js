@@ -4,6 +4,7 @@ import { scoreAllResponses } from '@/lib/scoringEngine.js';
 import { parseExcelSurveyData } from '@/lib/seed.js';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 export async function POST(request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const tempFilePath = path.join(process.cwd(), 'data', `temp_import_${Date.now()}.xlsx`);
+    const tempFilePath = path.join(os.tmpdir(), `temp_import_${Date.now()}.xlsx`);
     fs.writeFileSync(tempFilePath, buffer);
 
     let parsedResponses = [];
