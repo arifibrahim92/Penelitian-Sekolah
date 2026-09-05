@@ -7,10 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const initialSeedData = require('./seedData.json');
+import { initialSeedData } from './seedData.js';
 
 let dbInstance = null;
 
@@ -66,6 +63,10 @@ function createFallbackDatabase() {
         all(...params) {
           // 1. Projects queries
           if (s.includes('FROM PROJECTS')) {
+            if (s.includes('COUNT(*)')) {
+              return [{ count: store.projects.length }];
+            }
+
             if (s.includes('WHERE ID = ?') || s.includes('WHERE P.ID = ?')) {
               const id = params[0];
               const p = store.projects.find(item => item.id === id);
@@ -114,9 +115,15 @@ function createFallbackDatabase() {
 
           // 4. Enumerators count
           if (s.includes('FROM ENUMERATORS') && s.includes('COUNT(*)')) {
+            let list = store.enumerators;
             const pid = params[0];
-            const count = store.enumerators.filter(e => e.project_id === pid && e.status === 'ACTIVE').length;
-            return [{ count }];
+            if (pid) {
+              list = list.filter(e => e.project_id === pid);
+            }
+            if (s.includes('ACTIVE')) {
+              list = list.filter(e => e.status === 'ACTIVE');
+            }
+            return [{ count: list.length }];
           }
 
           // 5. Admin users queries
@@ -338,7 +345,7 @@ export function getDb() {
     return dbInstance;
   }
 
-  // Jika berjalan di cloud Netlify / Vercel / AWS Lambda, gunakan Resilient Fallback Engine langsung
+  // Jika berjalan di cloud Netlify / Vercel / AWS Lambda atau produksi, gunakan Resilient Engine
   const isServerless = Boolean(
     process.env.NETLIFY ||
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
@@ -350,9 +357,11 @@ export function getDb() {
     return dbInstance;
   }
 
-  // Jika di lokal (macOS/PC), gunakan better-sqlite3 dengan fallback
+  // Jika di lingkungan lokal (Mac/PC developer)
   try {
-    const Database = require('better-sqlite3');
+    const { createRequire } = require('module');
+    const localRequire = createRequire(import.meta.url);
+    const Database = localRequire('better-sqlite3');
     const localDataDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(localDataDir)) {
       fs.mkdirSync(localDataDir, { recursive: true });
@@ -366,8 +375,7 @@ export function getDb() {
     initTables(db);
     dbInstance = db;
     return dbInstance;
-  } catch (err) {
-    console.warn('better-sqlite3 failed to initialize, switching to fallback engine:', err.message);
+  } catch {
     dbInstance = createFallbackDatabase();
     return dbInstance;
   }
