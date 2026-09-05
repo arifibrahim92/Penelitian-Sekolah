@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getDb, generateId, generateRandomPin, hashString } from '@/lib/db.js';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0'
+};
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,10 +31,10 @@ export async function GET(request) {
     query += ' ORDER BY e.created_at DESC';
 
     const enumerators = db.prepare(query).all(...params);
-    return NextResponse.json({ success: true, enumerators });
+    return NextResponse.json({ success: true, enumerators }, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     console.error('Error fetching enumerators:', err);
-    return NextResponse.json({ error: 'Gagal memuat daftar enumerator' }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal memuat daftar enumerator' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -78,10 +87,10 @@ export async function POST(request) {
     await db.persist?.();
 
     const created = db.prepare('SELECT * FROM enumerators WHERE id = ?').get(enumId);
-    return NextResponse.json({ success: true, enumerator: created }, { status: 201 });
+    return NextResponse.json({ success: true, enumerator: created }, { status: 201, headers: NO_CACHE_HEADERS });
   } catch (err) {
     console.error('Error creating enumerator:', err);
-    return NextResponse.json({ error: 'Gagal mendaftarkan enumerator' }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal mendaftarkan enumerator' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -91,13 +100,13 @@ export async function PATCH(request) {
     const { id, status, regeneratePin, assignedSchool, fullName, phoneNumber } = body;
 
     if (!id) {
-      return NextResponse.json({ error: 'ID enumerator wajib disertakan' }, { status: 400 });
+      return NextResponse.json({ error: 'ID enumerator wajib disertakan' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     const db = await getDb();
     const existing = db.prepare('SELECT * FROM enumerators WHERE id = ?').get(id);
     if (!existing) {
-      return NextResponse.json({ error: 'Enumerator tidak ditemukan' }, { status: 404 });
+      return NextResponse.json({ error: 'Enumerator tidak ditemukan' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
 
     let updatedPinRaw = existing.pin_raw;
@@ -135,10 +144,10 @@ export async function PATCH(request) {
     await db.persist?.();
 
     const updated = db.prepare('SELECT * FROM enumerators WHERE id = ?').get(id);
-    return NextResponse.json({ success: true, enumerator: updated });
+    return NextResponse.json({ success: true, enumerator: updated }, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     console.error('Error updating enumerator:', err);
-    return NextResponse.json({ error: 'Gagal memperbarui data enumerator' }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal memperbarui data enumerator' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -148,16 +157,16 @@ export async function DELETE(request) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json({ error: 'ID enumerator wajib disertakan' }, { status: 400 });
+      return NextResponse.json({ error: 'ID enumerator wajib disertakan' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     const db = await getDb();
     db.prepare('DELETE FROM enumerators WHERE id = ?').run(id);
     await db.persist?.();
 
-    return NextResponse.json({ success: true, message: 'Enumerator berhasil dihapus' });
+    return NextResponse.json({ success: true, message: 'Enumerator berhasil dihapus' }, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     console.error('Error deleting enumerator:', err);
-    return NextResponse.json({ error: 'Gagal menghapus enumerator' }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal menghapus enumerator' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

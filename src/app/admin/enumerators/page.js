@@ -26,10 +26,15 @@ export default function EnumeratorsManagementPage() {
 
   const fetchEnumerators = async () => {
     try {
-      const url = projectId ? `/api/enumerators?projectId=${projectId}` : '/api/enumerators';
-      const res = await fetch(url);
+      const url = projectId 
+        ? `/api/enumerators?projectId=${encodeURIComponent(projectId)}&_t=${Date.now()}` 
+        : `/api/enumerators?_t=${Date.now()}`;
+      const res = await fetch(url, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.enumerators)) {
         setEnumerators(data.enumerators);
       }
     } catch (err) {
@@ -81,7 +86,13 @@ export default function EnumeratorsManagementPage() {
       setPhoneNumber('');
       setAssignedSchool('');
       setCustomPin('');
-      fetchEnumerators();
+
+      // Optimistic state update: masukkan langsung ke tabel secara instan
+      if (data.enumerator) {
+        setEnumerators(prev => [data.enumerator, ...prev.filter(e => e.id !== data.enumerator.id)]);
+      }
+
+      await fetchEnumerators();
     } catch (err) {
       setErrorMessage('Terjadi kesalahan jaringan');
     } finally {
@@ -91,6 +102,8 @@ export default function EnumeratorsManagementPage() {
 
   const handleToggleStatus = async (enumItem) => {
     const newStatus = enumItem.status === 'ACTIVE' ? 'REVOKED' : 'ACTIVE';
+    // Optimistic update
+    setEnumerators(prev => prev.map(e => e.id === enumItem.id ? { ...e, status: newStatus } : e));
     try {
       const res = await fetch('/api/enumerators', {
         method: 'PATCH',
@@ -105,6 +118,7 @@ export default function EnumeratorsManagementPage() {
       }
     } catch (err) {
       console.error('Error toggling status:', err);
+      fetchEnumerators();
     }
   };
 
@@ -118,7 +132,9 @@ export default function EnumeratorsManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, regeneratePin: true })
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.enumerator) {
+        setEnumerators(prev => prev.map(e => e.id === id ? data.enumerator : e));
         fetchEnumerators();
       }
     } catch (err) {
@@ -130,6 +146,8 @@ export default function EnumeratorsManagementPage() {
     if (!confirm(`Hapus enumerator "${name}"? Seluruh kuesioner yang telah diinput tetap tersimpan di database.`)) {
       return;
     }
+    // Optimistic update
+    setEnumerators(prev => prev.filter(e => e.id !== id));
     try {
       const res = await fetch(`/api/enumerators?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -137,6 +155,7 @@ export default function EnumeratorsManagementPage() {
       }
     } catch (err) {
       console.error('Error deleting enumerator:', err);
+      fetchEnumerators();
     }
   };
 
@@ -198,10 +217,16 @@ export default function EnumeratorsManagementPage() {
           </p>
         </div>
 
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <PlusCircle size={18} />
-          <span>Daftarkan Surveyor Baru</span>
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={fetchEnumerators} className="btn btn-secondary btn-sm" title="Segarkan data enumerator">
+            <RefreshCw size={15} />
+            <span>Segarkan</span>
+          </button>
+          <button onClick={() => setShowAddModal(true)} className="btn btn-primary btn-sm">
+            <PlusCircle size={16} />
+            <span>Daftarkan Surveyor Baru</span>
+          </button>
+        </div>
       </div>
 
       {message && (
