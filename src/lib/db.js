@@ -392,11 +392,31 @@ function createFallbackDatabase() {
             const id = params[params.length - 1];
             const item = store.projects.find(p => p.id === id);
             if (item) {
-              if (s.includes('STATUS = ?')) item.status = params[0];
+              if (s.includes('SET PROJECT_NAME = ?, TARGET_SAMPLE = ?, PROVINCE = ?, STATUS = ?')) {
+                const [name, target, province, status] = params;
+                if (name !== undefined) item.project_name = name;
+                if (target !== undefined) item.target_sample = Number(target);
+                if (province !== undefined) item.province = province;
+                if (status !== undefined) item.status = status;
+              } else if (s.includes('STATUS = ?')) {
+                item.status = params[0];
+              }
               save();
               return { changes: 1 };
             }
             return { changes: 0 };
+          }
+
+          // 9. DELETE FROM projects
+          if (s.startsWith('DELETE FROM PROJECTS')) {
+            const id = params[0];
+            const prev = store.projects.length;
+            store.projects = store.projects.filter(p => p.id !== id);
+            // Cascade delete related enumerators and survey_responses
+            store.enumerators = store.enumerators.filter(e => e.project_id !== id);
+            store.survey_responses = store.survey_responses.filter(r => r.project_id !== id);
+            save();
+            return { changes: prev - store.projects.length };
           }
 
           return { changes: 0 };

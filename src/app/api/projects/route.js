@@ -82,3 +82,32 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Gagal memperbarui proyek' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID Proyek wajib disertakan' }, { status: 400 });
+    }
+
+    const db = await getDb();
+    const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    if (!existing) {
+      return NextResponse.json({ error: 'Proyek tidak ditemukan' }, { status: 404 });
+    }
+
+    db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+
+    await db.persist?.();
+
+    return NextResponse.json({
+      success: true,
+      message: `Proyek "${existing.project_name}" beserta seluruh data terkait berhasil dihapus.`
+    });
+  } catch (err) {
+    console.error('Error deleting project:', err);
+    return NextResponse.json({ error: 'Gagal menghapus proyek' }, { status: 500 });
+  }
+}

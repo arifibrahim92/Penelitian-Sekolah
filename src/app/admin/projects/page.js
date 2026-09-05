@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   FolderPlus, Layers, CheckCircle2, AlertCircle, Clock,
-  Users, Database, ArrowRight, Plus, RefreshCw, X, Edit3, Shield
+  Users, Database, ArrowRight, Plus, RefreshCw, X, Edit3, Shield, Trash2
 } from 'lucide-react';
 import { useActiveProject } from '@/lib/projectContext.js';
 
@@ -91,6 +91,37 @@ export default function ProjectsManagementPage() {
       }
     } catch (err) {
       console.error('Error toggling status:', err);
+    }
+  };
+
+  const handleDeleteProject = async (proj) => {
+    const confirmDelete = window.confirm(
+      `Apakah Anda yakin ingin MENGHAPUS PERMANEN proyek riset:\n\n"${proj.project_name}"?\n\nSemua kuesioner dan data enumerator terkait akan ikut terhapus.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(`/api/projects?id=${encodeURIComponent(proj.id)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Gagal menghapus proyek');
+        return;
+      }
+      setSuccessMessage(data.message || `Proyek "${proj.project_name}" berhasil dihapus.`);
+      await refreshProjects();
+      if (projectId === proj.id) {
+        const remaining = projects.filter(p => p.id !== proj.id);
+        if (remaining.length > 0) {
+          switchProject(remaining[0].id);
+        } else {
+          switchProject('');
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      alert('Terjadi kesalahan koneksi saat menghapus proyek');
     }
   };
 
@@ -203,7 +234,7 @@ export default function ProjectsManagementPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className={`badge ${proj.status === 'ACTIVE' ? 'badge-safe' : 'badge-warning'}`}>
-                        {proj.status}
+                        {proj.status === 'CLOSED' ? 'DITUTUP' : proj.status === 'ACTIVE' ? 'AKTIF' : proj.status}
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         {proj.id}
@@ -298,24 +329,46 @@ export default function ProjectsManagementPage() {
                   alignItems: 'center',
                   paddingTop: 12,
                   borderTop: '1px solid var(--border-subtle)',
-                  gap: 8
+                  gap: 8,
+                  flexWrap: 'wrap'
                 }}>
-                  <button
-                    onClick={() => handleToggleStatus(proj)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: isClosed ? '#34d399' : 'var(--text-muted)',
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
-                  >
-                    <Clock size={12} />
-                    <span>{isClosed ? 'Buka Kembali' : 'Tutup Riset'}</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <button
+                      onClick={() => handleToggleStatus(proj)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: isClosed ? '#34d399' : 'var(--text-muted)',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      title={isClosed ? 'Buka riset kembali' : 'Tutup riset (arsipkan)'}
+                    >
+                      <Clock size={12} />
+                      <span>{isClosed ? 'Buka Kembali' : 'Tutup Riset'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteProject(proj)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#f87171',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      title="Hapus riset permanen beserta data terkait"
+                    >
+                      <Trash2 size={12} />
+                      <span>Hapus Riset</span>
+                    </button>
+                  </div>
 
                   <div style={{ display: 'flex', gap: 6 }}>
                     <Link
