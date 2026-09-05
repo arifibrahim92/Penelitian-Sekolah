@@ -7,7 +7,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const requestedId = searchParams.get('projectId');
 
-    const db = getDb();
+    const db = await getDb();
     let project = null;
 
     if (requestedId) {

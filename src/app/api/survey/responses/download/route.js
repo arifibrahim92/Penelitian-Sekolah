@@ -13,7 +13,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Parameter ID kuesioner diperlukan' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const row = db.prepare(`
       SELECT r.*, e.full_name as enumerator_name, p.project_name, p.province
       FROM survey_responses r

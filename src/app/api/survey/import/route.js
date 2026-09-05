@@ -40,7 +40,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Tidak ada baris data responden yang berhasil dibaca dari file.' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     let inserted = 0;
 
     const insertStmt = db.prepare(`
@@ -83,6 +83,8 @@ export async function POST(request) {
         WHERE id = ?
       `).run(inserted, enumeratorId);
     })();
+
+    await db.persist?.();
 
     return NextResponse.json({
       success: true,

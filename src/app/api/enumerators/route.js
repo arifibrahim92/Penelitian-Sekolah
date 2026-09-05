@@ -6,7 +6,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
 
-    const db = getDb();
+    const db = await getDb();
     let query = `
       SELECT e.*,
              (SELECT COUNT(*) FROM survey_responses r WHERE r.enumerator_id = e.id AND date(r.created_at) = date('now')) as today_submissions
@@ -38,7 +38,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Nama enumerator dan proyek wajib diisi' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
 
     // Pastikan PIN 6 digit unik
     let pinRaw = (customPin || '').trim();
@@ -75,6 +75,8 @@ export async function POST(request) {
       pinRaw
     );
 
+    await db.persist?.();
+
     const created = db.prepare('SELECT * FROM enumerators WHERE id = ?').get(enumId);
     return NextResponse.json({ success: true, enumerator: created }, { status: 201 });
   } catch (err) {
@@ -92,7 +94,7 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'ID enumerator wajib disertakan' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const existing = db.prepare('SELECT * FROM enumerators WHERE id = ?').get(id);
     if (!existing) {
       return NextResponse.json({ error: 'Enumerator tidak ditemukan' }, { status: 404 });
@@ -130,6 +132,8 @@ export async function PATCH(request) {
       id
     );
 
+    await db.persist?.();
+
     const updated = db.prepare('SELECT * FROM enumerators WHERE id = ?').get(id);
     return NextResponse.json({ success: true, enumerator: updated });
   } catch (err) {
@@ -147,8 +151,9 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'ID enumerator wajib disertakan' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     db.prepare('DELETE FROM enumerators WHERE id = ?').run(id);
+    await db.persist?.();
 
     return NextResponse.json({ success: true, message: 'Enumerator berhasil dihapus' });
   } catch (err) {

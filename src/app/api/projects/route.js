@@ -3,7 +3,7 @@ import { getDb, generateId } from '@/lib/db.js';
 
 export async function GET() {
   try {
-    const db = getDb();
+    const db = await getDb();
     const projects = db.prepare(`
       SELECT p.*,
         (SELECT COUNT(*) FROM survey_responses r WHERE r.project_id = p.id) as total_responses,
@@ -29,13 +29,15 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Nama proyek wajib diisi' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const projectId = generateId('PRJ-2026');
 
     db.prepare(`
       INSERT INTO projects (id, project_name, target_sample, province, status, created_by)
       VALUES (?, ?, ?, ?, 'ACTIVE', 'ADMIN')
     `).run(projectId, project_name, parseInt(target_sample, 10), province);
+
+    await db.persist?.();
 
     const newProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
     return NextResponse.json({ success: true, project: newProject }, { status: 201 });
@@ -54,7 +56,7 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'ID Proyek wajib disertakan' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     if (!existing) {
       return NextResponse.json({ error: 'Proyek tidak ditemukan' }, { status: 404 });
@@ -70,6 +72,8 @@ export async function PATCH(request) {
       SET project_name = ?, target_sample = ?, province = ?, status = ?
       WHERE id = ?
     `).run(updatedName, updatedTarget, updatedProvince, updatedStatus, id);
+
+    await db.persist?.();
 
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     return NextResponse.json({ success: true, project: updated });

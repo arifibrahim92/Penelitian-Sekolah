@@ -20,7 +20,7 @@ export async function POST(request) {
       rawResponses = {}
     } = body;
 
-    const db = getDb();
+    const db = await getDb();
 
     // 1. Verifikasi Enumerator
     let enumerator = null;
@@ -101,6 +101,8 @@ export async function POST(request) {
         WHERE id = ?
       `).run(enumerator.id);
     })();
+
+    await db.persist?.();
 
     // Ambil statistik terkini enumerator
     const updatedEnum = db.prepare('SELECT total_submissions FROM enumerators WHERE id = ?').get(enumerator.id);

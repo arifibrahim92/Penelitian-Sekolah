@@ -4,14 +4,14 @@ import { getDb } from '@/lib/db.js';
 
 export const dynamic = 'force-dynamic';
 
-export default function HomePage() {
+export default async function HomePage() {
   let project = null;
   let totalResponses = 0;
   let activeEnumerators = 0;
   let totalSchools = 0;
 
   try {
-    const db = getDb();
+    const db = await getDb();
     const p = db.prepare('SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC').get('ACTIVE') || db.prepare('SELECT * FROM projects ORDER BY created_at DESC').get();
     if (p) {
       project = p;

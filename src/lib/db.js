@@ -10,10 +10,25 @@ import crypto from 'crypto';
 import { initialSeedData } from './seedData.js';
 
 let dbInstance = null;
+let blobStorePromise = null;
+
+async function getBlobStore() {
+  if (!blobStorePromise) {
+    blobStorePromise = (async () => {
+      try {
+        const { getStore } = await import('@netlify/blobs');
+        return getStore('survey-cloud-store');
+      } catch (err) {
+        return null;
+      }
+    })();
+  }
+  return blobStorePromise;
+}
 
 /**
- * Pure-JS Resilient In-Memory Database Engine
- * Menjamin zero-crash 100% pada lingkungan serverless seperti Netlify & AWS Lambda.
+ * Pure-JS Resilient In-Memory Database Engine with Cloud Persistence
+ * Menjamin zero-crash 100% dan persistensi antar serverless container via Netlify Blobs.
  */
 function createFallbackDatabase() {
   let store = {
@@ -24,23 +39,65 @@ function createFallbackDatabase() {
   };
 
   const persistFile = path.join(os.tmpdir(), 'survey-store-v3.json');
-  if (fs.existsSync(persistFile)) {
-    try {
-      const loaded = JSON.parse(fs.readFileSync(persistFile, 'utf8'));
-      if (loaded && loaded.admin_users && loaded.admin_users.length > 0) {
-        store = loaded;
-      }
-    } catch {}
-  }
 
-  function save() {
+  function loadLocal() {
+    if (fs.existsSync(persistFile)) {
+      try {
+        const loaded = JSON.parse(fs.readFileSync(persistFile, 'utf8'));
+        if (loaded && loaded.admin_users && loaded.admin_users.length > 0) {
+          store = loaded;
+        }
+      } catch {}
+    }
+  }
+  loadLocal();
+
+  function saveLocal() {
     try {
       fs.writeFileSync(persistFile, JSON.stringify(store));
     } catch {}
   }
 
+  async function persist() {
+    saveLocal();
+    try {
+      const bStore = await getBlobStore();
+      if (bStore) {
+        await bStore.setJSON('latest_state', store);
+      }
+    } catch (err) {
+      console.warn('Blobs persist warning:', err?.message);
+    }
+  }
+
+  async function syncFromCloud() {
+    loadLocal();
+    try {
+      const bStore = await getBlobStore();
+      if (bStore) {
+        const remote = await bStore.get('latest_state', { type: 'json' });
+        if (remote && Array.isArray(remote.projects)) {
+          store.admin_users = remote.admin_users || store.admin_users;
+          store.projects = remote.projects || [];
+          store.enumerators = remote.enumerators || [];
+          store.survey_responses = remote.survey_responses || [];
+          saveLocal();
+        }
+      }
+    } catch (err) {
+      console.warn('Sync from cloud fallback:', err?.message);
+    }
+  }
+
+  function save() {
+    saveLocal();
+    persist().catch(() => {});
+  }
+
   return {
     isFallback: true,
+    syncFromCloud,
+    persist,
     pragma() {},
     exec() {},
     transaction(fn) {
@@ -350,44 +407,58 @@ function createFallbackDatabase() {
 }
 
 export function getDb() {
-  if (dbInstance) {
-    return dbInstance;
-  }
-
-  // Jika berjalan di cloud Netlify / Vercel / AWS Lambda atau produksi, gunakan Resilient Engine
   const isServerless = Boolean(
     process.env.NETLIFY ||
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
     process.env.VERCEL
   );
 
+  let targetDb;
   if (isServerless) {
-    dbInstance = createFallbackDatabase();
-    return dbInstance;
-  }
-
-  // Jika di lingkungan lokal (Mac/PC developer)
-  try {
-    const { createRequire } = require('module');
-    const localRequire = createRequire(import.meta.url);
-    const Database = localRequire('better-sqlite3');
-    const localDataDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(localDataDir)) {
-      fs.mkdirSync(localDataDir, { recursive: true });
+    if (!dbInstance) {
+      dbInstance = createFallbackDatabase();
     }
-    const dbPath = path.join(localDataDir, 'survey.db');
-    const db = new Database(dbPath);
+    targetDb = dbInstance;
+  } else {
+    if (dbInstance) {
+      targetDb = dbInstance;
+    } else {
+      try {
+        const { createRequire } = require('module');
+        const localRequire = createRequire(import.meta.url);
+        const Database = localRequire('better-sqlite3');
+        const localDataDir = path.join(process.cwd(), 'data');
+        if (!fs.existsSync(localDataDir)) {
+          fs.mkdirSync(localDataDir, { recursive: true });
+        }
+        const dbPath = path.join(localDataDir, 'survey.db');
+        const db = new Database(dbPath);
 
-    try { db.pragma('journal_mode = WAL'); } catch {}
-    try { db.pragma('foreign_keys = ON'); } catch {}
+        try { db.pragma('journal_mode = WAL'); } catch {}
+        try { db.pragma('foreign_keys = ON'); } catch {}
 
-    initTables(db);
-    dbInstance = db;
-    return dbInstance;
-  } catch {
-    dbInstance = createFallbackDatabase();
-    return dbInstance;
+        initTables(db);
+        dbInstance = db;
+        targetDb = dbInstance;
+      } catch {
+        dbInstance = createFallbackDatabase();
+        targetDb = dbInstance;
+      }
+    }
   }
+
+  const syncPromise = targetDb.syncFromCloud ? targetDb.syncFromCloud() : Promise.resolve();
+
+  return new Proxy(targetDb, {
+    get(target, prop) {
+      if (prop === 'then') {
+        return (resolve, reject) => {
+          syncPromise.then(() => resolve(target), reject);
+        };
+      }
+      return target[prop];
+    }
+  });
 }
 
 function initTables(db) {

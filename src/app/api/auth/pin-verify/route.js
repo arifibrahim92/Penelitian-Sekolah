@@ -10,7 +10,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Kode PIN harus berupa 6-digit angka' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const enumerator = db.prepare(`
       SELECT e.id, e.project_id, e.full_name, e.phone_number, e.assigned_school, e.status, e.total_submissions,
              p.project_name, p.province, p.status as project_status
@@ -82,7 +82,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Parameter PIN dibutuhkan' }, { status: 400 });
   }
 
-  const db = getDb();
+  const db = await getDb();
   const enumerator = db.prepare(`
     SELECT e.id, e.project_id, e.full_name, e.phone_number, e.assigned_school, e.status, e.total_submissions,
            p.project_name, p.province, p.status as project_status

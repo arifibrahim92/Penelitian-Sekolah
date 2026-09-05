@@ -8,7 +8,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email dan kata sandi wajib diisi' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const user = db.prepare('SELECT id, email, password_hash, name, role FROM admin_users WHERE email = ?').get(email.trim().toLowerCase());
 
     if (!user) {

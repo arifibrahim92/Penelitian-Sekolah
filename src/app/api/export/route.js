@@ -9,7 +9,7 @@ export async function GET(request) {
     const projectId = searchParams.get('projectId') || 'PRJ-2026-JB-001';
     const format = searchParams.get('format') || 'json';
 
-    const db = getDb();
+    const db = await getDb();
     const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
     if (!project) {
       return NextResponse.json({ error: 'Proyek tidak ditemukan' }, { status: 404 });

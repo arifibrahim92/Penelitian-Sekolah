@@ -14,7 +14,7 @@ export async function GET(request) {
     const duration = searchParams.get('duration') || '';
     const media = searchParams.get('media') || '';
 
-    const db = getDb();
+    const db = await getDb();
     let whereClauses = ['r.project_id = ?'];
     let params = [projectId];
 
@@ -102,7 +102,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'ID responden wajib disertakan' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const existing = db.prepare('SELECT enumerator_id FROM survey_responses WHERE id = ?').get(id);
     if (!existing) {
       return NextResponse.json({ error: 'Data responden tidak ditemukan' }, { status: 404 });
@@ -118,6 +118,8 @@ export async function DELETE(request) {
         `).run(existing.enumerator_id);
       }
     })();
+
+    await db.persist?.();
 
     return NextResponse.json({ success: true, message: 'Data responden berhasil dihapus' });
   } catch (err) {
