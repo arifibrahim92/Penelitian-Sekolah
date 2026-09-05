@@ -409,8 +409,11 @@ function createFallbackDatabase() {
 export function getDb() {
   const isServerless = Boolean(
     process.env.NETLIFY ||
+    process.env.NETLIFY_BLOBS_CONTEXT ||
+    process.env.NETLIFY_FUNCTIONS_TOKEN ||
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.VERCEL
+    process.env.VERCEL ||
+    process.env.NODE_ENV === 'production'
   );
 
   let targetDb;
