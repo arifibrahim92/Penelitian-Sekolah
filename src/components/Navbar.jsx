@@ -176,13 +176,19 @@ export default function Navbar() {
 }
 
 function ProjectNavSelector() {
-  const { projectId, activeProject, projects, switchProject } = useActiveProject();
+  const { projectId, activeProject, projects, switchProject, refreshProjects } = useActiveProject();
   const [open, setOpen] = useState(false);
 
   return (
     <div style={{ position: 'relative' }}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          const willOpen = !open;
+          setOpen(willOpen);
+          if (willOpen) {
+            refreshProjects?.();
+          }
+        }}
         className="btn btn-secondary btn-sm"
         style={{
           display: 'flex',

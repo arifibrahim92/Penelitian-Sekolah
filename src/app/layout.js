@@ -1,5 +1,6 @@
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import { ProjectProvider } from '@/lib/projectContext.js';
 
 export const metadata = {
   title: 'Platform Survei & Analytics Engine | Riset Radikalisme di Satuan Pendidikan',
@@ -16,12 +17,14 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body>
-        <div className="app-container">
-          <Navbar />
-          <main className="main-content">
-            {children}
-          </main>
-        </div>
+        <ProjectProvider>
+          <div className="app-container">
+            <Navbar />
+            <main className="main-content">
+              {children}
+            </main>
+          </div>
+        </ProjectProvider>
       </body>
     </html>
   );
