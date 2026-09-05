@@ -1,0 +1,21 @@
+{
+  "name": "survei-radikalisme-sekolah",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Platform Survei Lapangan & Analytics Engine: Riset Respon Siswa terhadap Narasi Radikal Terorisme di Media Sosial",
+  "scripts": {
+    "dev": "next dev -p 3005",
+    "build": "next build",
+    "start": "next start -p 3005",
+    "seed": "node src/lib/seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "canvas-confetti": "^1.9.4",
+    "lucide-react": "^1.16.0",
+    "next": "^15.1.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
