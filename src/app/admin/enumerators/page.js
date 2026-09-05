@@ -26,8 +26,8 @@ export default function EnumeratorsManagementPage() {
 
   const fetchEnumerators = async () => {
     try {
-      const targetId = projectId || 'PRJ-2026-JB-001';
-      const res = await fetch(`/api/enumerators?projectId=${targetId}`);
+      const url = projectId ? `/api/enumerators?projectId=${projectId}` : '/api/enumerators';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
         setEnumerators(data.enumerators);
@@ -49,12 +49,18 @@ export default function EnumeratorsManagementPage() {
     setMessage('');
     setErrorMessage('');
 
+    if (!projectId) {
+      setErrorMessage('Silakan buat proyek riset terlebih dahulu sebelum mendaftarkan enumerator.');
+      setActionLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/enumerators', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: projectId || 'PRJ-2026-JB-001',
+          projectId,
           fullName,
           phoneNumber,
           assignedSchool,
@@ -144,6 +150,36 @@ export default function EnumeratorsManagementPage() {
       setTimeout(() => setCopiedLink(null), 2000);
     }
   };
+
+  if (!loading && !activeProject) {
+    return (
+      <div className="animate-fade-in" style={{ padding: '80px 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 540, margin: '0 auto' }} className="glass-card">
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: 'rgba(99, 102, 241, 0.15)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 16
+          }}>
+            <Users size={28} color="#818cf8" />
+          </div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 8, color: '#fff' }}>
+            Belum Ada Riset yang Terdaftar
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 24 }}>
+            Untuk mendaftarkan enumerator lapangan, silakan daftarkan proyek riset terlebih dahulu.
+          </p>
+          <a href="/admin/projects" className="btn btn-primary">
+            <span>Buka Manajemen Riset</span>
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: 60 }}>

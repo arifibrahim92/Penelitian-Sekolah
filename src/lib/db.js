@@ -128,6 +128,9 @@ function createFallbackDatabase() {
 
           // 5. Admin users queries
           if (s.includes('FROM ADMIN_USERS')) {
+            if (s.includes('COUNT(*)')) {
+              return [{ count: store.admin_users.length }];
+            }
             if (s.includes('WHERE EMAIL = ?')) {
               const email = (params[0] || '').trim().toLowerCase();
               return store.admin_users.filter(u => (u.email || '').trim().toLowerCase() === email);

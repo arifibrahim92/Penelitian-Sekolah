@@ -5,29 +5,25 @@ import { getDb } from '@/lib/db.js';
 export const dynamic = 'force-dynamic';
 
 export default function HomePage() {
-  let project = {
-    id: 'PRJ-2026-JB-001',
-    project_name: 'Survei Respon Siswa terhadap Narasi Radikal Terorisme di Media Sosial',
-    target_sample: 400,
-    province: 'Jawa Barat'
-  };
-  let totalResponses = 68;
-  let activeEnumerators = 5;
-  let totalSchools = 3;
+  let project = null;
+  let totalResponses = 0;
+  let activeEnumerators = 0;
+  let totalSchools = 0;
 
   try {
     const db = getDb();
-    const p = db.prepare('SELECT * FROM projects WHERE id = ?').get('PRJ-2026-JB-001');
-    if (p) project = p;
-
-    totalResponses = db.prepare('SELECT COUNT(*) as count FROM survey_responses WHERE project_id = ?').get(project.id)?.count ?? totalResponses;
-    activeEnumerators = db.prepare("SELECT COUNT(*) as count FROM enumerators WHERE project_id = ? AND status = 'ACTIVE'").get(project.id)?.count ?? activeEnumerators;
-    totalSchools = db.prepare('SELECT COUNT(DISTINCT school_name) as count FROM survey_responses WHERE project_id = ?').get(project.id)?.count ?? totalSchools;
+    const p = db.prepare('SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC').get('ACTIVE') || db.prepare('SELECT * FROM projects ORDER BY created_at DESC').get();
+    if (p) {
+      project = p;
+      totalResponses = db.prepare('SELECT COUNT(*) as count FROM survey_responses WHERE project_id = ?').get(project.id)?.count || 0;
+      activeEnumerators = db.prepare("SELECT COUNT(*) as count FROM enumerators WHERE project_id = ? AND status = 'ACTIVE'").get(project.id)?.count || 0;
+      totalSchools = db.prepare('SELECT COUNT(DISTINCT school_name) as count FROM survey_responses WHERE project_id = ?').get(project.id)?.count || 0;
+    }
   } catch (err) {
     console.warn('DB load warning on HomePage:', err?.message);
   }
 
-  const percentTarget = Math.min(100, Number(((totalResponses / project.target_sample) * 100).toFixed(1)));
+  const percentTarget = project && project.target_sample ? Math.min(100, Number(((totalResponses / project.target_sample) * 100).toFixed(1))) : 0;
 
   return (
     <div className="animate-fade-in" style={{ padding: '20px 0 40px' }}>
@@ -67,50 +63,79 @@ export default function HomePage() {
 
       {/* Live Project Overview Banner */}
       <div className="glass-card" style={{ maxWidth: 1000, margin: '0 auto 40px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 67, 0.6) 100%)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Wilayah Riset Terkini
+        {project ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Wilayah Riset Terkini
+                </div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>
+                  {project.project_name} ({project.province})
+                </div>
+              </div>
+              <span className="badge badge-safe">
+                <CheckCircle2 size={13} />
+                STATUS: AKTIF BERJALAN
+              </span>
             </div>
-            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff' }}>
-              {project.project_name} ({project.province})
-            </div>
-          </div>
-          <span className="badge badge-safe">
-            <CheckCircle2 size={13} />
-            STATUS: AKTIF BERJALAN
-          </span>
-        </div>
 
-        {/* 4 Key Live Indicators */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 16,
-          paddingTop: 16,
-          borderTop: '1px solid var(--border-subtle)'
-        }}>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Responden Masuk</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#38bdf8' }}>{totalResponses}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Target: {project.target_sample} siswa</div>
+            {/* 4 Key Live Indicators */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 16,
+              paddingTop: 16,
+              borderTop: '1px solid var(--border-subtle)'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Responden Masuk</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#38bdf8' }}>{totalResponses}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Target: {project.target_sample} siswa</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ketercapaian Kuota</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#34d399' }}>{percentTarget}%</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Margin of Error: ~12%</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Enumerator Aktif</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#a78bfa' }}>{activeEnumerators}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Akses via PIN 6-digit</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Sekolah Terdata</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24' }}>{totalSchools}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>SMK / SMA / MA</div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: 'rgba(99, 102, 241, 0.15)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 14
+            }}>
+              <Layers size={24} color="#818cf8" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8, color: '#fff' }}>
+              Belum Ada Riset yang Terdaftar
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: 520, margin: '0 auto 18px', lineHeight: 1.6 }}>
+              Seluruh proyek riset sebelumnya telah dibersihkan. Peneliti dapat masuk ke Portal Admin untuk mendaftarkan proyek riset baru, menentukan target kuota sampel, dan mendistribusikan PIN enumerator lapangan.
+            </p>
+            <Link href="/admin/login" className="btn btn-primary btn-sm">
+              <span>Buka Portal Peneliti (Admin)</span>
+              <ArrowRight size={14} />
+            </Link>
           </div>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ketercapaian Kuota</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#34d399' }}>{percentTarget}%</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Margin of Error: ~12%</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Enumerator Aktif</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#a78bfa' }}>{activeEnumerators}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Akses via PIN 6-digit</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Sekolah Terdata</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24' }}>{totalSchools}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>SMK / SMA / MA</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Two Entry Portals */}

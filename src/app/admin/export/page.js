@@ -17,8 +17,8 @@ export default function ExportHubPage() {
 
   useEffect(() => {
     setLoading(true);
-    const targetId = projectId || 'PRJ-2026-JB-001';
-    fetch(`/api/analytics?projectId=${targetId}`)
+    const url = projectId ? `/api/analytics?projectId=${projectId}` : '/api/analytics';
+    fetch(url)
       .then(res => res.json())
       .then(json => {
         if (json.success) setData(json);
@@ -47,6 +47,37 @@ export default function ExportHubPage() {
   }
 
   const { project, analytics } = data || {};
+
+  if (!project) {
+    return (
+      <div className="animate-fade-in" style={{ padding: '80px 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 540, margin: '0 auto' }} className="glass-card">
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: 'rgba(99, 102, 241, 0.15)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 16
+          }}>
+            <Download size={28} color="#818cf8" />
+          </div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 8, color: '#fff' }}>
+            Belum Ada Riset yang Terdaftar
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 24 }}>
+            Tidak ada data riset untuk diekspor. Silakan daftarkan proyek riset baru terlebih dahulu.
+          </p>
+          <Link href="/admin/projects" className="btn btn-primary">
+            <span>Buka Manajemen Riset</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const jsonOutput = analytics?.structuredJson || {};
   const dim = analytics?.dimensionResults || {};
   const ind = analytics?.indicatorResults || {};

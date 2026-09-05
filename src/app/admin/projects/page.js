@@ -148,6 +148,29 @@ export default function ProjectsManagementPage() {
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-secondary)' }}>
           Memuat daftar proyek riset...
         </div>
+      ) : projects.length === 0 ? (
+        <div className="glass-card" style={{ textAlign: 'center', padding: '56px 20px', maxWidth: 600, margin: '0 auto' }}>
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: 'rgba(99, 102, 241, 0.15)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 16
+          }}>
+            <Layers size={28} color="#818cf8" />
+          </div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 8 }}>Belum Ada Riset yang Terdaftar</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6 }}>
+            Seluruh data penelitian sebelumnya telah dibersihkan. Klik tombol di bawah untuk mendaftarkan proyek penelitian baru.
+          </p>
+          <button onClick={() => setShowCreateModal(true)} className="btn btn-primary">
+            <Plus size={16} />
+            <span>+ Buat Penelitian Baru</span>
+          </button>
+        </div>
       ) : (
         <div style={{
           display: 'grid',

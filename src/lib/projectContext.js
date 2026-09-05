@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 
 const STORAGE_KEY = 'survei_active_project_id';
-const DEFAULT_PROJECT_ID = 'PRJ-2026-JB-001';
+const DEFAULT_PROJECT_ID = '';
 
 export function getStoredProjectId() {
   if (typeof window === 'undefined') return DEFAULT_PROJECT_ID;
@@ -30,12 +30,16 @@ export function useActiveProject() {
       const data = await res.json();
       if (data.success && data.projects) {
         setProjects(data.projects);
-        // If stored projectId is not in list, fallback to first project
-        const exists = data.projects.some(p => p.id === projectId);
-        if (!exists && data.projects.length > 0) {
-          const firstId = data.projects[0].id;
-          setProjectId(firstId);
-          localStorage.setItem(STORAGE_KEY, firstId);
+        if (data.projects.length === 0) {
+          setProjectId('');
+          if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY);
+        } else {
+          const exists = data.projects.some(p => p.id === projectId);
+          if (!exists) {
+            const firstId = data.projects[0].id;
+            setProjectId(firstId);
+            localStorage.setItem(STORAGE_KEY, firstId);
+          }
         }
       }
     } catch (err) {

@@ -17,8 +17,8 @@ export default function AdminDashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      const targetId = projectId || 'PRJ-2026-JB-001';
-      const res = await fetch(`/api/analytics?projectId=${targetId}`);
+      const url = projectId ? `/api/analytics?projectId=${projectId}` : '/api/analytics';
+      const res = await fetch(url);
       const json = await res.json();
       if (json.success) {
         setData(json);
@@ -49,6 +49,37 @@ export default function AdminDashboard() {
   }
 
   const { project, analytics } = data || {};
+
+  if (!project) {
+    return (
+      <div className="animate-fade-in" style={{ padding: '80px 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 540, margin: '0 auto' }} className="glass-card">
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: 'rgba(99, 102, 241, 0.15)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 16
+          }}>
+            <Layers size={28} color="#818cf8" />
+          </div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 8, color: '#fff' }}>
+            Belum Ada Riset yang Terdaftar
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 24 }}>
+            Seluruh data riset terdaftar telah dibersihkan. Silakan daftarkan riset baru untuk mengelola enumerator dan memulai pemantauan survei.
+          </p>
+          <Link href="/admin/projects" className="btn btn-primary">
+            <FolderPlus size={16} />
+            <span>+ Buat Proyek Riset Baru</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const total = analytics?.totalResponden || 0;
   const target = project?.target_sample || 400;
   const percentAchieved = Math.min(100, Number(((total / target) * 100).toFixed(1)));
