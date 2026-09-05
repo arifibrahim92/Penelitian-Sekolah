@@ -23,7 +23,7 @@ function createFallbackDatabase() {
     survey_responses: JSON.parse(JSON.stringify(initialSeedData.survey_responses || []))
   };
 
-  const persistFile = path.join(os.tmpdir(), 'survey-fallback-store.json');
+  const persistFile = path.join(os.tmpdir(), 'survey-store-v3.json');
   if (fs.existsSync(persistFile)) {
     try {
       const loaded = JSON.parse(fs.readFileSync(persistFile, 'utf8'));
@@ -63,7 +63,7 @@ function createFallbackDatabase() {
         all(...params) {
           // 1. Projects queries
           if (s.includes('FROM PROJECTS')) {
-            if (s.includes('COUNT(*)')) {
+            if (s.startsWith('SELECT COUNT(*)') || s.startsWith('SELECT COUNT(1)')) {
               return [{ count: store.projects.length }];
             }
 
@@ -74,8 +74,14 @@ function createFallbackDatabase() {
               return [{ ...p }];
             }
 
+            let list = [...store.projects];
+            if (s.includes('WHERE STATUS = ?')) {
+              const status = params[0] || 'ACTIVE';
+              list = list.filter(p => p.status === status);
+            }
+
             // List projects with calculated columns
-            return store.projects.map(p => {
+            return list.map(p => {
               const total_responses = store.survey_responses.filter(r => r.project_id === p.id).length;
               const active_enumerators = store.enumerators.filter(e => e.project_id === p.id && e.status === 'ACTIVE').length;
               const schools = new Set(store.survey_responses.filter(r => r.project_id === p.id).map(r => r.school_name).filter(Boolean));
@@ -89,7 +95,7 @@ function createFallbackDatabase() {
           }
 
           // 2. Counts on survey_responses
-          if (s.includes('FROM SURVEY_RESPONSES') && s.includes('COUNT(*)')) {
+          if (s.includes('FROM SURVEY_RESPONSES') && (s.startsWith('SELECT COUNT(*)') || s.startsWith('SELECT COUNT(1)'))) {
             if (s.includes('WHERE PROJECT_ID = ?') || s.includes('R.PROJECT_ID = ?')) {
               const pid = params[0];
               const count = store.survey_responses.filter(r => r.project_id === pid).length;
@@ -114,7 +120,7 @@ function createFallbackDatabase() {
           }
 
           // 4. Enumerators count
-          if (s.includes('FROM ENUMERATORS') && s.includes('COUNT(*)')) {
+          if (s.includes('FROM ENUMERATORS') && (s.startsWith('SELECT COUNT(*)') || s.startsWith('SELECT COUNT(1)'))) {
             let list = store.enumerators;
             const pid = params[0];
             if (pid) {
