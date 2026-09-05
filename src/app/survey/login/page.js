@@ -246,33 +246,6 @@ function SurveyLoginContent() {
             ⌫
           </button>
         </div>
-
-        {/* Demo Quick PIN Helpers */}
-        <div style={{
-          paddingTop: 16,
-          borderTop: '1px solid var(--border-subtle)',
-          textAlign: 'left'
-        }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 700 }}>
-            PIN ENUMERATOR DEMO / UJI COBA:
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => { setPin('123456'); verifyPin('123456'); }}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.78rem' }}
-            >
-              123456 (SMK N 3 Bandung)
-            </button>
-            <button
-              onClick={() => { setPin('654321'); verifyPin('654321'); }}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.78rem' }}
-            >
-              654321 (SMA N 1 Bandung)
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
