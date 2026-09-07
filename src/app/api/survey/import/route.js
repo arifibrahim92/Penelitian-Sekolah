@@ -1,48 +1,105 @@
 import { NextResponse } from 'next/server';
-import { getDb, generateId } from '@/lib/db.js';
+import { getDb, generateId, hashString } from '@/lib/db.js';
 import { scoreAllResponses } from '@/lib/scoringEngine.js';
-import { parseExcelSurveyData } from '@/lib/seed.js';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { parseSurveyExcel } from '@/lib/excelParser.js';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
-    const projectId = formData.get('projectId') || 'PRJ-2026-JB-001';
-    const enumeratorId = formData.get('enumeratorId') || 'ENUM-001';
+    const requestedProjectId = formData.get('projectId');
+    const requestedEnumeratorId = formData.get('enumeratorId');
 
     if (!file) {
-      return NextResponse.json({ error: 'File Excel (.xlsx) atau CSV wajib diunggah' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Berkas Excel (.xlsx, .xls) atau CSV wajib dipilih untuk diunggah.' },
+        { status: 400 }
+      );
     }
 
+    // Baca buffer langsung dari memori tanpa file sementara
     const buffer = Buffer.from(await file.arrayBuffer());
-    const tempFilePath = path.join(os.tmpdir(), `temp_import_${Date.now()}.xlsx`);
-    fs.writeFileSync(tempFilePath, buffer);
 
     let parsedResponses = [];
     try {
-      parsedResponses = parseExcelSurveyData(tempFilePath);
+      parsedResponses = parseSurveyExcel(buffer);
     } catch (parseErr) {
-      console.error('Error parsing uploaded file:', parseErr);
-      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-      return NextResponse.json({
-        error: 'Format file tidak valid atau gagal diekstrak. Pastikan file berformat .xlsx dengan kolom standar riset.'
-      }, { status: 400 });
-    } finally {
-      if (fs.existsSync(tempFilePath)) {
-        try { fs.unlinkSync(tempFilePath); } catch {}
-      }
+      console.error('Error parsing uploaded survey file:', parseErr);
+      return NextResponse.json(
+        {
+          error:
+            parseErr.message ||
+            'Format berkas tidak valid atau gagal dibaca. Pastikan berkas berformat .xlsx, .xls, atau .csv dengan kolom instrumen riset standar (Q1 s/d Q24).'
+        },
+        { status: 400 }
+      );
     }
 
-    if (parsedResponses.length === 0) {
-      return NextResponse.json({ error: 'Tidak ada baris data responden yang berhasil dibaca dari file.' }, { status: 400 });
+    if (!parsedResponses || parsedResponses.length === 0) {
+      return NextResponse.json(
+        { error: 'Tidak ada baris data responden yang berhasil diekstrak dari berkas.' },
+        { status: 400 }
+      );
     }
 
     const db = await getDb();
-    let inserted = 0;
 
+    // 1. Validasi / Resolusi Proyek Riset
+    let project = null;
+    if (requestedProjectId) {
+      project = db.prepare('SELECT id, project_name FROM projects WHERE id = ?').get(requestedProjectId);
+    }
+    if (!project) {
+      // Ambil proyek yang berstatus ACTIVE terbaru atau proyek terbaru apa pun
+      project =
+        db.prepare('SELECT id, project_name FROM projects WHERE status = "ACTIVE" ORDER BY created_at DESC LIMIT 1').get() ||
+        db.prepare('SELECT id, project_name FROM projects ORDER BY created_at DESC LIMIT 1').get();
+    }
+
+    if (!project) {
+      return NextResponse.json(
+        {
+          error:
+            'Belum ada proyek riset yang terdaftar di sistem. Silakan buat riset baru terlebih dahulu pada menu Manajemen Riset sebelum mengimpor data kuesioner.'
+        },
+        { status: 400 }
+      );
+    }
+
+    // 2. Validasi / Resolusi Enumerator
+    let enumerator = null;
+    if (requestedEnumeratorId) {
+      enumerator = db
+        .prepare('SELECT id FROM enumerators WHERE id = ? AND project_id = ?')
+        .get(requestedEnumeratorId, project.id);
+    }
+    if (!enumerator) {
+      enumerator =
+        db.prepare('SELECT id FROM enumerators WHERE project_id = ? AND status = "ACTIVE" LIMIT 1').get(project.id) ||
+        db.prepare('SELECT id FROM enumerators WHERE project_id = ? LIMIT 1').get(project.id);
+    }
+
+    if (!enumerator) {
+      // Buat enumerator default otomatis untuk impor data jika belum ada
+      const newEnumId = generateId('ENUM-IMP');
+      db.prepare(`
+        INSERT INTO enumerators (id, project_id, full_name, phone_number, assigned_school, pin_hash, pin_raw, status, total_submissions)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 0)
+      `).run(
+        newEnumId,
+        project.id,
+        'Petugas Impor Berkas',
+        '08120000000',
+        'Semua Sekolah (Data Impor)',
+        hashString('123456'),
+        '123456'
+      );
+      enumerator = { id: newEnumId };
+    }
+
+    // 3. Masukkan Seluruh Data Responden
     const insertStmt = db.prepare(`
       INSERT INTO survey_responses (
         id, project_id, enumerator_id, student_name, gender, religion, grade,
@@ -51,17 +108,30 @@ export async function POST(request) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    let inserted = 0;
+
     db.transaction(() => {
       for (let i = 0; i < parsedResponses.length; i++) {
         const r = parsedResponses[i];
         const respId = generateId('RESP-IMP');
         const scored = scoreAllResponses(r.rawResponses);
 
+        let studentDisplayName = `Responden Impor ${i + 1}`;
+        if (r.studentCode) {
+          if (r.studentCode.toUpperCase().startsWith('R') || r.studentCode.toLowerCase().startsWith('responden')) {
+            studentDisplayName = r.studentCode.toLowerCase().startsWith('responden')
+              ? r.studentCode
+              : `Responden ${r.studentCode}`;
+          } else {
+            studentDisplayName = r.studentCode;
+          }
+        }
+
         insertStmt.run(
           respId,
-          projectId,
-          enumeratorId,
-          `Responden Import ${i + 1}`,
+          project.id,
+          enumerator.id,
+          studentDisplayName,
           r.gender || 'Perempuan',
           r.religion || 'Islam',
           r.grade || 'X',
@@ -81,18 +151,24 @@ export async function POST(request) {
         UPDATE enumerators
         SET total_submissions = total_submissions + ?
         WHERE id = ?
-      `).run(inserted, enumeratorId);
+      `).run(inserted, enumerator.id);
     })();
 
+    // Persistensi data ke Netlify Blobs / disk lokal
     await db.persist?.();
 
     return NextResponse.json({
       success: true,
-      message: `Berhasil mengimpor ${inserted} responden baru ke dalam proyek!`,
-      importedCount: inserted
+      message: `Berhasil mengimpor ${inserted} data responden kuesioner ke dalam riset "${project.project_name}"!`,
+      importedCount: inserted,
+      projectId: project.id,
+      projectName: project.project_name
     });
   } catch (err) {
     console.error('Error during survey import:', err);
-    return NextResponse.json({ error: 'Gagal mengimpor file data' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Terjadi kesalahan pada server saat memproses impor data kuesioner.' },
+      { status: 500 }
+    );
   }
 }

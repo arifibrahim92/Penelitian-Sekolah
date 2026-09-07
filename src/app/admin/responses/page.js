@@ -561,16 +561,43 @@ export default function SurveyResponsesPage() {
         </div>
       )}
 
-      {/* IMPORT MODAL (Upload File Excel) */}
+      {/* IMPORT MODAL (Upload File Excel / CSV) */}
       {showImportModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 520 }}>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 8 }}>
-              Impor Berkas Survei Excel (.xlsx)
-            </h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 20 }}>
-              Unggah file rekapan hasil survei responden berformat Excel sesuai format standar riset Jawa Barat (BNPT).
-            </p>
+          <div className="modal-content" style={{ maxWidth: 540 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 4 }}>
+                  Impor Berkas Kuesioner Excel / CSV
+                </h2>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                  Unggah berkas rekapan data kuesioner responden untuk diinput langsung ke database riset.
+                </p>
+              </div>
+              <button onClick={() => setShowImportModal(false)} className="btn btn-secondary btn-sm">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Target Project Indicator */}
+            <div style={{
+              background: 'rgba(6, 182, 212, 0.08)',
+              border: '1px solid rgba(6, 182, 212, 0.25)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '10px 14px',
+              marginBottom: 16,
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <Database size={16} color="var(--accent)" />
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>Tujuan Riset:</span>{' '}
+                <strong style={{ color: '#38bdf8' }}>{activeProject?.project_name || 'Riset Aktif'}</strong>{' '}
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({projectId || 'Auto-detect'})</span>
+              </div>
+            </div>
 
             {errorMessage && (
               <div style={{
@@ -590,24 +617,24 @@ export default function SurveyResponsesPage() {
               <div style={{
                 border: '2px dashed var(--border-light)',
                 borderRadius: 'var(--radius-md)',
-                padding: '30px 20px',
+                padding: '26px 20px',
                 textAlign: 'center',
                 marginBottom: 20,
                 background: 'rgba(255, 255, 255, 0.02)'
               }}>
-                <FileSpreadsheet size={40} color="#06b6d4" style={{ margin: '0 auto 12px' }} />
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff', marginBottom: 6 }}>
-                  {importFile ? importFile.name : 'Pilih Berkas Excel (.xlsx)'}
+                <FileSpreadsheet size={42} color="#06b6d4" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#fff', marginBottom: 6 }}>
+                  {importFile ? importFile.name : 'Pilih Berkas Excel (.xlsx, .xls) atau .csv'}
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                  Mendukung file seperti <i>Jawa Barat - Input Hasil Survey Respon Siswa.xlsx</i>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.4 }}>
+                  Mendukung template resmi BNPT (misal: <i>Jawa Barat - Input Hasil Survey Respon Siswa.xlsx</i>) maupun tabel CSV standar dengan kolom <b>Q1 s/d Q24</b>.
                 </div>
                 <input
                   type="file"
-                  accept=".xlsx"
+                  accept=".xlsx, .xls, .csv"
                   required
                   onChange={(e) => setImportFile(e.target.files[0])}
-                  style={{ fontSize: '0.85rem' }}
+                  style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}
                 />
               </div>
 
@@ -624,7 +651,7 @@ export default function SurveyResponsesPage() {
                   disabled={importing || !importFile}
                   className="btn btn-accent"
                 >
-                  {importing ? 'Memproses Impor...' : 'Unggah & Ekstrak Data'}
+                  {importing ? 'Memproses & Menginput Data...' : 'Unggah & Ekstrak Data'}
                 </button>
               </div>
             </form>

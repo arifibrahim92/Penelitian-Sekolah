@@ -4,7 +4,6 @@
 
 import { getDb, hashString, generateId } from './db.js';
 import { scoreAllResponses } from './scoringEngine.js';
-import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
@@ -163,77 +162,13 @@ export function runSeed() {
   console.log('🏁 Proses seeding selesai dengan sukses!');
 }
 
+import { parseSurveyExcel } from './excelParser.js';
+
 /**
- * Parser file XLSX berbasis unzip & regex XML standar bawaan
+ * Parser file XLSX murni JavaScript
  */
 export function parseExcelSurveyData(filePath) {
-  const sharedStringsXml = execSync(`unzip -p "${filePath}" xl/sharedStrings.xml`).toString();
-  const strings = [...sharedStringsXml.matchAll(/<si>(.*?)<\/si>/gs)].map(m => {
-    const tMatches = [...m[1].matchAll(/<t[^>]*>(.*?)<\/t>/gs)].map(tm => tm[1]);
-    return tMatches.join('');
-  });
-
-  const sheetXml = execSync(`unzip -p "${filePath}" xl/worksheets/sheet1.xml`).toString();
-  const rowMatches = [...sheetXml.matchAll(/<row[^>]*r="(\d+)"[^>]*>(.*?)<\/row>/gs)];
-
-  const results = [];
-
-  // Baris data dimulai dari baris ke-6 (baris 4-5 adalah header)
-  for (const rMatch of rowMatches) {
-    const rowNum = parseInt(rMatch[1], 10);
-    if (rowNum < 6) continue;
-
-    const rowContent = rMatch[2];
-    const cells = {};
-    const cellMatches = [...rowContent.matchAll(/<c[^>]*r="([A-Z]+)\d+"(?:[^>]*t="([^"]*)")?[^>]*>(?:<v>([^<]*)<\/v>)?<\/c>/gs)];
-
-    for (const c of cellMatches) {
-      const col = c[1];
-      const type = c[2];
-      const val = c[3];
-      let text = val;
-      if (type === 's' && val !== undefined) {
-        text = strings[parseInt(val, 10)];
-      }
-      cells[col] = text ? text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() : '';
-    }
-
-    if (!cells['A'] && !cells['B']) continue;
-
-    // Kolom mapping:
-    // B: Gender, C: Agama, D: Kelas, E: Sekolah, F: Durasi, G: Medsos, H: Konten
-    // I s/d AF: Q1 s/d Q24
-    const questionCols = [
-      'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
-      'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB',
-      'AC', 'AD', 'AE', 'AF'
-    ];
-
-    const rawResponses = {};
-    for (let qIdx = 0; qIdx < 24; qIdx++) {
-      const colLetter = questionCols[qIdx];
-      const qCode = `Q${qIdx + 1}`;
-      rawResponses[qCode] = (cells[colLetter] || 'S').trim().toUpperCase();
-    }
-
-    let favoriteContent = [];
-    if (cells['H']) {
-      favoriteContent = cells['H'].split(',').map(s => s.trim()).filter(Boolean);
-    }
-
-    results.push({
-      gender: cells['B'] || 'Perempuan',
-      religion: cells['C'] || 'Islam',
-      grade: cells['D'] || 'X',
-      school: cells['E'] || 'SMK N 3 BANDUNG',
-      duration: cells['F'] || '3-5 jam',
-      favoriteMedia: cells['G'] || 'TikTok',
-      favoriteContent,
-      rawResponses
-    });
-  }
-
-  return results;
+  return parseSurveyExcel(filePath);
 }
 
 // Jika dijalankan langsung dari CLI
