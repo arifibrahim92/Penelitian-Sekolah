@@ -2,11 +2,27 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { QUESTIONS, DIMENSIONS, INDICATORS } from '@/lib/instrument.js';
+import { generateExcelSurveyTemplateBuffer } from '@/lib/excelTemplate.js';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const format = (searchParams.get('format') || 'docx').toLowerCase();
+
+    // 0. Format XLSX (Draft Template Excel untuk Input Data Manual)
+    if (format === 'xlsx' || format === 'excel') {
+      const buffer = generateExcelSurveyTemplateBuffer();
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': 'attachment; filename="Template_Input_Kuesioner_Respon_Siswa.xlsx"',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      });
+    }
 
     // 1. Format DOCX (Berkas Resmi Dokumen Word)
     if (format === 'docx') {

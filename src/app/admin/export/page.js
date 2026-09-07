@@ -546,6 +546,198 @@ export default function ExportHubPage() {
           </div>
         </div>
       )}
+
+      {/* TAB 4: DRAFT INSTRUMEN KUESIONER */}
+      {activeTab === 'draft' && (
+        <div className="no-print glass-card animate-fade-in">
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 6 }}>
+              Pusat Unduhan Draft &amp; Template Kuesioner Survei
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+              Unduh berkas instrumen riset dalam berbagai format untuk keperluan pengisian lapangan, input manual, pencetakan kuesioner fisik, atau integrasi sistem.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {/* Card 1: Excel Template */}
+            <div style={{
+              background: 'rgba(6, 182, 212, 0.05)',
+              border: '1px solid rgba(6, 182, 212, 0.25)',
+              borderRadius: 'var(--radius-md)',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'rgba(6, 182, 212, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#06b6d4'
+                  }}>
+                    <FileSpreadsheet size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff' }}>Draft Template Excel</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>Format .XLSX (Siap Isi &amp; Impor)</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                  Berkas Excel terstruktur berisi sheet <b>Input Data Kuesioner</b>, daftar 24 butir soal, dan panduan pengisian. Isi data siswa secara manual, lalu unggah kembali melalui menu <i>Impor Excel</i>.
+                </p>
+              </div>
+              <a
+                href="/api/survey/template"
+                download="Template_Input_Kuesioner_Respon_Siswa.xlsx"
+                className="btn btn-accent"
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Download size={15} />
+                <span>Unduh Template Excel (.xlsx)</span>
+              </a>
+            </div>
+
+            {/* Card 2: Word DOCX */}
+            <div style={{
+              background: 'rgba(99, 102, 241, 0.05)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              borderRadius: 'var(--radius-md)',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'rgba(99, 102, 241, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#818cf8'
+                  }}>
+                    <FileText size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff' }}>Dokumen Resmi Word</h4>
+                    <span style={{ fontSize: '0.75rem', color: '#a5b4fc', fontWeight: 600 }}>Format .DOCX (Kop BNPT RI)</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                  Naskah resmi instrumen riset BNPT RI lengkap dengan surat pengantar, instruksi pengerjaan responden, tabel butir pertanyaan, dan lembar persetujuan.
+                </p>
+              </div>
+              <a
+                href="/api/instrument/download?format=docx"
+                download="Draft_Kuesioner_Survei_Respon_Siswa_BNPT_RI.docx"
+                className="btn btn-secondary"
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Download size={15} />
+                <span>Unduh Naskah Word (.docx)</span>
+              </a>
+            </div>
+
+            {/* Card 3: JSON */}
+            <div style={{
+              background: 'rgba(168, 85, 247, 0.05)',
+              border: '1px solid rgba(168, 85, 247, 0.25)',
+              borderRadius: 'var(--radius-md)',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'rgba(168, 85, 247, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#c084fc'
+                  }}>
+                    <FileCode size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff' }}>Struktur JSON Instrumen</h4>
+                    <span style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 600 }}>Format .JSON (Machine-Readable)</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                  Skema data terstruktur memuat definisi 4 dimensi, 7 indikator, dan 24 butir pertanyaan beserta valensi psikometri (+/-) untuk integrasi digital.
+                </p>
+              </div>
+              <a
+                href="/api/instrument/download?format=json"
+                download="Draft_Instrumen_Kuesioner_Q1-Q24.json"
+                className="btn btn-secondary"
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Download size={15} />
+                <span>Unduh Berkas JSON (.json)</span>
+              </a>
+            </div>
+
+            {/* Card 4: Plain Text Siap Cetak */}
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.05)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              borderRadius: 'var(--radius-md)',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fbbf24'
+                  }}>
+                    <Printer size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff' }}>Lembar Cetak Fisik</h4>
+                    <span style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: 600 }}>Format .TXT (Siap Cetak / Fotokopi)</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                  Lembar kuesioner format teks monospasi siap dicetak langsung atau difotokopi untuk survei manual di sekolah tanpa ketergantungan gawai siswa.
+                </p>
+              </div>
+              <a
+                href="/api/instrument/download?format=txt"
+                download="Draft_Lembar_Kuesioner_Siswa_Siap_Cetak.txt"
+                className="btn btn-secondary"
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Download size={15} />
+                <span>Unduh Lembar Cetak (.txt)</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

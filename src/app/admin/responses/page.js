@@ -134,7 +134,16 @@ export default function SurveyResponsesPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button onClick={() => setShowImportModal(true)} className="btn btn-secondary">
+          <a
+            href="/api/survey/template"
+            download="Template_Input_Kuesioner_Respon_Siswa.xlsx"
+            className="btn btn-secondary"
+            title="Unduh berkas draft Excel (.xlsx) siap isi untuk input data kuesioner secara manual"
+          >
+            <Download size={16} />
+            <span>Draft Excel (.xlsx)</span>
+          </a>
+          <button onClick={() => setShowImportModal(true)} className="btn btn-accent">
             <Upload size={16} />
             <span>Impor Excel (.xlsx)</span>
           </button>
@@ -597,6 +606,40 @@ export default function SurveyResponsesPage() {
                 <strong style={{ color: '#38bdf8' }}>{activeProject?.project_name || 'Riset Aktif'}</strong>{' '}
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({projectId || 'Auto-detect'})</span>
               </div>
+            </div>
+
+            {/* Template Download Banner */}
+            <div style={{
+              background: 'rgba(56, 189, 248, 0.07)',
+              border: '1px solid rgba(56, 189, 248, 0.22)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '12px 14px',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <FileSpreadsheet size={15} />
+                  <span>Draft Format Excel Siap Pakai</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  Unduh template draft Excel kosong untuk mengisi data responden dan butir Q1–Q24 secara manual.
+                </div>
+              </div>
+              <a
+                href="/api/survey/template"
+                download="Template_Input_Kuesioner_Respon_Siswa.xlsx"
+                className="btn btn-secondary btn-sm"
+                style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)', padding: '5px 12px', whiteSpace: 'nowrap' }}
+                title="Unduh Berkas Template Excel (.xlsx)"
+              >
+                <Download size={14} />
+                <span>Unduh Draft Excel</span>
+              </a>
             </div>
 
             {errorMessage && (
