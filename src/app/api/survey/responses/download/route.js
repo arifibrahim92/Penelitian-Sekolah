@@ -3,6 +3,9 @@ import { getDb } from '@/lib/db.js';
 import { QUESTIONS, QUESTION_MAP, DIMENSIONS, INDICATORS } from '@/lib/instrument.js';
 import { scoreSingleResponse, evaluateResponseSafety } from '@/lib/scoringEngine.js';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -105,12 +108,62 @@ export async function GET(request) {
         status: 200,
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Content-Disposition': `attachment; filename="jawaban-${safeFileName}-${row.id}.json"`
+          'Content-Disposition': `attachment; filename="jawaban-${safeFileName}-${row.id}.json"`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
         }
       });
     }
 
-    // 2. Format Transkrip Teks (TXT)
+    // 2. Format CSV Lembar Kuesioner Siswa (Siap Dibuka di Microsoft Excel)
+    if (format === 'csv' || format === 'excel') {
+      const csvLines = [
+        `"BADAN NASIONAL PENANGGULANGAN TERORISME REPUBLIK INDONESIA (BNPT RI)"`,
+        `"LEMBAR KUESIONER & TRANSKRIP JAWABAN SISWA"`,
+        `""`,
+        `"INFORMASI KUESIONER"`,
+        `"ID Responden","${escapeCsv(row.id)}"`,
+        `"Nama Siswa","${escapeCsv(row.student_name)}"`,
+        `"Jenis Kelamin","${escapeCsv(row.gender)}"`,
+        `"Agama","${escapeCsv(row.religion)}"`,
+        `"Kelas","${escapeCsv(row.grade)}"`,
+        `"Asal Satuan Pendidikan","${escapeCsv(row.school_name)}"`,
+        `"Durasi Medsos/Hari","${escapeCsv(row.social_media_duration)}"`,
+        `"Platform Medsos Favorit","${escapeCsv(row.favorite_social_media)}"`,
+        `"Topik Minat","${escapeCsv(favoriteContent.join('; '))}"`,
+        `"Petugas Enumerator","${escapeCsv(row.enumerator_name || '')}"`,
+        `"Waktu Submit","${escapeCsv(row.created_at)}"`,
+        `"Total Skor Aktual","${totalScore} dari ${maxScore} poin (${scorePercent}%)"`,
+        `"Status Klasifikasi","${scorePercent >= 70 ? 'KUAT / RESILIEN' : (scorePercent >= 50 ? 'WASPADA / SEDANG' : 'KRITIS / RENTAN')}"`,
+        `""`,
+        `"No","Kode","Dimensi","Indikator","Sifat Butir","Jawaban Siswa","Skor Inversi (1-4)","Status Butir","Pernyataan Instrumen"`
+      ];
+
+      items.forEach(i => {
+        csvLines.push([
+          i.number,
+          `"${escapeCsv(i.code)}"`,
+          `"${escapeCsv(i.dimensionName)}"`,
+          `"${escapeCsv(i.indicatorName)}"`,
+          `"${escapeCsv(i.valence)}"`,
+          `"${escapeCsv(i.rawAnswer)}"`,
+          i.numericScore,
+          `"${escapeCsv(i.safetyStatus)}"`,
+          `"${escapeCsv(i.questionText)}"`
+        ].join(','));
+      });
+
+      const csvContent = '\uFEFF' + csvLines.join('\r\n');
+      return new Response(csvContent, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="kuesioner-${safeFileName}-${row.id}.csv"`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      });
+    }
+
+    // 3. Format Transkrip Teks (TXT)
     const line = '='.repeat(80);
     const subLine = '-'.repeat(80);
 
@@ -172,6 +225,11 @@ export async function GET(request) {
     console.error('Error downloading response file:', err);
     return NextResponse.json({ error: 'Gagal mengunduh berkas kuesioner responden' }, { status: 500 });
   }
+}
+
+function escapeCsv(val) {
+  if (val === null || val === undefined) return '';
+  return String(val).replace(/"/g, '""');
 }
 
 function safeJsonParse(str, fallback) {

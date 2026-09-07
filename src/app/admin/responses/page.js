@@ -138,13 +138,32 @@ export default function SurveyResponsesPage() {
             <Upload size={16} />
             <span>Impor Excel (.xlsx)</span>
           </button>
-          <a href="/api/export?format=csv_raw" download className="btn btn-secondary">
+          <a
+            href={`/api/export?projectId=${encodeURIComponent(projectId || '')}&format=csv_raw`}
+            download
+            className="btn btn-secondary"
+            title="Unduh seluruh data kuesioner responden dalam format CSV mentah"
+          >
             <Download size={16} />
             <span>CSV Mentah</span>
           </a>
-          <a href="/api/export?format=csv_scored" download className="btn btn-accent">
+          <a
+            href={`/api/export?projectId=${encodeURIComponent(projectId || '')}&format=csv_scored`}
+            download
+            className="btn btn-accent"
+            title="Unduh seluruh data kuesioner responden dengan skor psikometri inversi (Excel / CSV)"
+          >
+            <FileSpreadsheet size={16} />
+            <span>CSV Berskor (Excel)</span>
+          </a>
+          <a
+            href={`/api/export?projectId=${encodeURIComponent(projectId || '')}&format=json`}
+            download
+            className="btn btn-secondary"
+            title="Unduh seluruh berkas data riset dalam skema JSON baku (PRD 7.1)"
+          >
             <Download size={16} />
-            <span>CSV Berskor</span>
+            <span>JSON Riset</span>
           </a>
         </div>
       </div>
@@ -330,6 +349,16 @@ export default function SurveyResponsesPage() {
                           <span>Detail</span>
                         </button>
                         <a
+                          href={`/api/survey/responses/download?id=${r.id}&format=csv`}
+                          className="btn btn-secondary btn-sm"
+                          title="Unduh Lembar Kuesioner Siswa (Format Excel / CSV)"
+                          style={{ padding: '4px 8px', color: '#10b981' }}
+                          download
+                        >
+                          <FileSpreadsheet size={13} />
+                          <span>CSV</span>
+                        </a>
+                        <a
                           href={`/api/survey/responses/download?id=${r.id}&format=json`}
                           className="btn btn-secondary btn-sm"
                           title="Unduh Berkas Jawaban Responden (Format JSON)"
@@ -498,6 +527,15 @@ export default function SurveyResponsesPage() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, flexWrap: 'wrap', gap: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <a
+                  href={`/api/survey/responses/download?id=${detailModal.id}&format=csv`}
+                  className="btn btn-accent btn-sm"
+                  title="Unduh Lembar Kuesioner Siswa (Format Excel / CSV)"
+                  download
+                >
+                  <FileSpreadsheet size={14} />
+                  <span>Unduh Lembar Jawaban (.CSV / Excel)</span>
+                </a>
                 <a
                   href={`/api/survey/responses/download?id=${detailModal.id}&format=json`}
                   className="btn btn-primary btn-sm"

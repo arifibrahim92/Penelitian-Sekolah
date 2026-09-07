@@ -163,7 +163,7 @@ export default function ExportHubPage() {
                 {copied ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
                 <span>{copied ? 'Tersalin!' : 'Salin JSON'}</span>
               </button>
-              <a href={`/api/export?format=json&projectId=${projectId || 'PRJ-2026-JB-001'}`} download className="btn btn-accent btn-sm">
+              <a href={`/api/export?format=json&projectId=${encodeURIComponent(projectId || '')}`} download className="btn btn-accent btn-sm">
                 <Download size={14} />
                 <span>Unduh Berkas JSON</span>
               </a>
@@ -198,7 +198,7 @@ export default function ExportHubPage() {
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
               Berisi identitas profil siswa (gender, agama, kelas, sekolah), perilaku bermedia sosial, serta seluruh jawaban asli Q1–Q24 dalam huruf alfabet (SS, S, TS, STS).
             </p>
-            <a href={`/api/export?format=csv_raw&projectId=${projectId || 'PRJ-2026-JB-001'}`} download className="btn btn-secondary btn-lg" style={{ width: '100%' }}>
+            <a href={`/api/export?format=csv_raw&projectId=${encodeURIComponent(projectId || '')}`} download className="btn btn-secondary btn-lg" style={{ width: '100%' }}>
               <Download size={18} />
               <span>Unduh CSV Data Mentah</span>
             </a>
@@ -212,7 +212,7 @@ export default function ExportHubPage() {
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
               Berisi nilai numerik terstandarisasi (1–4) setelah penerapan aturan pembalikan (*inversion*) butir unfavorable, dilengkapi total akumulasi dan rata-rata skor per siswa.
             </p>
-            <a href={`/api/export?format=csv_scored&projectId=${projectId || 'PRJ-2026-JB-001'}`} download className="btn btn-accent btn-lg" style={{ width: '100%' }}>
+            <a href={`/api/export?format=csv_scored&projectId=${encodeURIComponent(projectId || '')}`} download className="btn btn-accent btn-lg" style={{ width: '100%' }}>
               <Download size={18} />
               <span>Unduh CSV Data Berskor</span>
             </a>

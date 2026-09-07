@@ -3,17 +3,32 @@ import { getDb } from '@/lib/db.js';
 import { computeComprehensiveAnalytics } from '@/lib/scoringEngine.js';
 import { QUESTIONS } from '@/lib/instrument.js';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId') || 'PRJ-2026-JB-001';
-    const format = searchParams.get('format') || 'json';
+    let projectId = searchParams.get('projectId');
+    const format = (searchParams.get('format') || 'csv_scored').toLowerCase();
 
     const db = await getDb();
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+
+    // Fallback: If no projectId or specified project not found, resolve to current/latest active project
+    let project = projectId ? db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) : null;
     if (!project) {
-      return NextResponse.json({ error: 'Proyek tidak ditemukan' }, { status: 404 });
+      const allProjects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+      if (allProjects.length > 0) {
+        project = allProjects[0];
+        projectId = project.id;
+      }
     }
+
+    if (!project) {
+      return NextResponse.json({ error: 'Belum ada proyek riset yang terdaftar' }, { status: 404 });
+    }
+
+    const safeProjectName = (project.project_name || 'riset').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
 
     const enumerators = db.prepare('SELECT * FROM enumerators WHERE project_id = ?').all(projectId);
     const responses = db.prepare(`
@@ -33,13 +48,14 @@ export async function GET(request) {
         status: 200,
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Content-Disposition': `attachment; filename="hasil_analisis_${projectId}.json"`
+          'Content-Disposition': `attachment; filename="hasil_analisis_${safeProjectName}_${projectId}.json"`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
         }
       });
     }
 
     // 2. Format CSV Raw Responses
-    if (format === 'csv_raw') {
+    if (format === 'csv_raw' || format === 'raw') {
       const qHeaders = QUESTIONS.map(q => q.code);
       const headerRow = [
         'ID Responden', 'Nama Siswa', 'Jenis Kelamin', 'Agama', 'Kelas', 'Sekolah',
@@ -77,13 +93,14 @@ export async function GET(request) {
         status: 200,
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="data_mentah_${projectId}.csv"`
+          'Content-Disposition': `attachment; filename="data_mentah_${safeProjectName}_${projectId}.csv"`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
         }
       });
     }
 
     // 3. Format CSV Scored Responses (Nilai 1-4 setelah Inversi)
-    if (format === 'csv_scored') {
+    if (format === 'csv_scored' || format === 'scored' || format === 'csv' || format === 'excel' || format === 'xlsx') {
       const qHeaders = QUESTIONS.map(q => `${q.code} (${q.valence === 'FAVORABLE' ? '+' : '-'})`);
       const headerRow = [
         'ID Responden', 'Nama Siswa', 'Jenis Kelamin', 'Agama', 'Kelas', 'Sekolah',
@@ -125,7 +142,8 @@ export async function GET(request) {
         status: 200,
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="data_berskor_${projectId}.csv"`
+          'Content-Disposition': `attachment; filename="data_berskor_${safeProjectName}_${projectId}.csv"`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
         }
       });
     }
