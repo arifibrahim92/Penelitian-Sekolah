@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db.js';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId') || 'PRJ-2026-JB-001';
+    const db = await getDb();
+
+    let projectId = searchParams.get('projectId');
+    if (!projectId) {
+      const activeProj =
+        db.prepare('SELECT id FROM projects WHERE status = "ACTIVE" ORDER BY created_at DESC LIMIT 1').get() ||
+        db.prepare('SELECT id FROM projects ORDER BY created_at DESC LIMIT 1').get();
+      projectId = activeProj ? activeProj.id : '';
+    }
+
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const search = searchParams.get('search') || '';
@@ -14,7 +26,6 @@ export async function GET(request) {
     const duration = searchParams.get('duration') || '';
     const media = searchParams.get('media') || '';
 
-    const db = await getDb();
     let whereClauses = ['r.project_id = ?'];
     let params = [projectId];
 
@@ -85,6 +96,10 @@ export async function GET(request) {
         page,
         limit,
         totalPages: Math.ceil(totalCount / limit) || 1
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
       }
     });
   } catch (err) {

@@ -254,6 +254,20 @@ function createFallbackDatabase() {
 
           // 7. Survey responses queries
           if (s.includes('FROM SURVEY_RESPONSES')) {
+            if (s.includes('DISTINCT SCHOOL_NAME')) {
+              let list = [...store.survey_responses];
+              if (params[0]) list = list.filter(r => r.project_id === params[0]);
+              const uniqueSchools = Array.from(new Set(list.map(r => r.school_name).filter(Boolean))).sort();
+              return uniqueSchools.map(name => ({ school_name: name }));
+            }
+
+            if (s.includes('DISTINCT RELIGION')) {
+              let list = [...store.survey_responses];
+              if (params[0]) list = list.filter(r => r.project_id === params[0]);
+              const uniqueReligions = Array.from(new Set(list.map(r => r.religion).filter(Boolean))).sort();
+              return uniqueReligions.map(name => ({ religion: name }));
+            }
+
             if (s.includes('WHERE R.ID = ?') || s.includes('WHERE ID = ?')) {
               const id = params[0];
               const r = store.survey_responses.find(item => item.id === id);
