@@ -4,6 +4,7 @@ import { StatusPanel } from '@/components/status-panel'
 import { PortalCards } from '@/components/portal-cards'
 import { getDb } from '@/lib/db.js';
 
+// Landing page with multi-project selector and live analytics v1.0.1
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
