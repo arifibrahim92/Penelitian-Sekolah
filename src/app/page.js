@@ -7,35 +7,21 @@ import { getDb } from '@/lib/db.js';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  let project = null;
-  let totalResponses = 0;
-  let activeEnumerators = 0;
-  let totalSchools = 0;
+  let projects = [];
 
   try {
     const db = await getDb();
-    const p = db.prepare('SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC').get('ACTIVE') || db.prepare('SELECT * FROM projects ORDER BY created_at DESC').get();
-    if (p) {
-      project = p;
-      totalResponses = db.prepare('SELECT COUNT(*) as count FROM survey_responses WHERE project_id = ?').get(project.id)?.count || 0;
-      activeEnumerators = db.prepare("SELECT COUNT(*) as count FROM enumerators WHERE project_id = ? AND status = 'ACTIVE'").get(project.id)?.count || 0;
-      totalSchools = db.prepare('SELECT COUNT(DISTINCT school_name) as count FROM survey_responses WHERE project_id = ?').get(project.id)?.count || 0;
-    }
+    projects = db.prepare(`
+      SELECT p.*,
+        (SELECT COUNT(*) FROM survey_responses r WHERE r.project_id = p.id) as total_responses,
+        (SELECT COUNT(*) FROM enumerators e WHERE e.project_id = p.id AND e.status = 'ACTIVE') as active_enumerators,
+        (SELECT COUNT(DISTINCT school_name) FROM survey_responses r WHERE r.project_id = p.id) as total_schools
+      FROM projects p
+      ORDER BY p.created_at DESC
+    `).all();
   } catch (err) {
     console.warn('DB load warning on HomePage:', err?.message);
   }
-
-  const targetSample = project?.target_sample || 400;
-  const percentTarget = project && project.target_sample
-    ? Math.min(100, Number(((totalResponses / project.target_sample) * 100).toFixed(1)))
-    : (totalResponses > 0 ? Math.min(100, Number(((totalResponses / targetSample) * 100).toFixed(1))) : 0);
-
-  const metrics = [
-    { label: 'Responden Masuk', value: String(totalResponses), sub: `Target: ${targetSample} siswa`, tone: 'text-foreground' },
-    { label: 'Ketercapaian Kuota', value: `${percentTarget}%`, sub: 'Margin of Error: ~12%', tone: 'text-phosphor' },
-    { label: 'Enumerator Aktif', value: String(activeEnumerators), sub: 'Akses via PIN 6-digit', tone: 'text-violet' },
-    { label: 'Sekolah Terdata', value: String(totalSchools), sub: 'SMK / SMA / MA', tone: 'text-amber' },
-  ];
 
   return (
     <div className="retro-landing-root relative min-h-screen overflow-hidden bg-background">
@@ -51,7 +37,7 @@ export default async function Page() {
         <SiteHeader />
         <main>
           <Hero />
-          <StatusPanel project={project} metrics={metrics} />
+          <StatusPanel initialProjects={projects} />
           <PortalCards />
         </main>
       </div>
