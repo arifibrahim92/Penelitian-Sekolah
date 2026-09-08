@@ -148,13 +148,19 @@ export function StatusPanel({ initialProjects = [] }) {
                   className="project-dropdown-btn"
                   style={{
                     backgroundColor: '#0c182c',
-                    border: '1px solid rgba(6, 182, 212, 0.45)',
-                    color: '#38bdf8',
+                    border: '1px solid #06b6d4',
+                    color: '#ffffff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
                   }}
                 >
                   <Layers className="size-3.5" style={{ color: '#06b6d4' }} />
-                  <span>Pilih Riset Lain</span>
-                  <ChevronDown className={`size-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>Pilih Riset Lain</span>
+                  <ChevronDown className={`size-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} style={{ color: '#38bdf8' }} />
                 </button>
 
                 {dropdownOpen && (
@@ -167,8 +173,8 @@ export function StatusPanel({ initialProjects = [] }) {
                       className="absolute right-0 top-full z-50 mt-2 w-72 sm:w-80 rounded-md p-2 shadow-2xl backdrop-blur-md"
                       style={{
                         backgroundColor: '#0a101f',
-                        border: '1px solid rgba(6, 182, 212, 0.45)',
-                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(6, 182, 212, 0.25)',
+                        border: '1px solid rgba(6, 182, 212, 0.5)',
+                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.9), 0 0 20px rgba(6, 182, 212, 0.25)',
                       }}
                     >
                       <div
@@ -218,17 +224,27 @@ export function StatusPanel({ initialProjects = [] }) {
 
         {/* Multiple Projects Switcher Tabs/Pills */}
         {projects.length > 1 && (
-          <div className="mt-5 pt-4 border-t border-border/60">
+          <div className="mt-6 pt-5 border-t border-border/60">
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span
-                className="font-mono text-xs font-bold tracking-[0.14em] flex items-center gap-2"
-                style={{ color: '#e2e8f0' }}
-              >
-                <Layers className="size-4" style={{ color: '#06b6d4' }} />
-                <span>PILIH &amp; GANTI TAMPILAN RISET:</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <div style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 6,
+                  background: 'rgba(6, 182, 212, 0.15)',
+                  border: '1px solid rgba(6, 182, 212, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Layers className="size-3.5" style={{ color: '#06b6d4' }} />
+                </div>
+                <span className="font-mono text-xs font-bold tracking-[0.12em]" style={{ color: '#f8fafc' }}>
+                  PILIH &amp; GANTI TAMPILAN RISET:
+                </span>
+              </div>
               <span className="hidden sm:inline font-mono text-[11px]" style={{ color: '#94a3b8' }}>
-                Klik kartu riset untuk beralih data
+                Klik tombol riset untuk beralih data
               </span>
             </div>
 
@@ -245,25 +261,31 @@ export function StatusPanel({ initialProjects = [] }) {
                     onClick={() => handleSelectProject(p.id)}
                     className={`project-pill ${isSelected ? 'project-pill-active' : ''}`}
                     style={{
-                      backgroundColor: isSelected ? '#082138' : '#0b1120',
-                      border: isSelected ? '1px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.15)',
-                      color: isSelected ? '#ffffff' : '#e2e8f0',
+                      backgroundColor: isSelected ? '#082138' : '#0f172a',
+                      border: isSelected ? '1.5px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.18)',
+                      boxShadow: isSelected ? '0 0 16px rgba(6, 182, 212, 0.35)' : '0 2px 6px rgba(0, 0, 0, 0.3)',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
                     }}
                   >
                     <span
                       style={{
-                        width: 8,
-                        height: 8,
+                        width: 9,
+                        height: 9,
                         borderRadius: '50%',
                         backgroundColor: isSelected ? '#06b6d4' : '#64748b',
                         boxShadow: isSelected ? '0 0 10px #06b6d4' : 'none',
                         flexShrink: 0,
                       }}
                     />
-                    <span style={{ fontWeight: 700, color: isSelected ? '#ffffff' : '#e2e8f0' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#ffffff' }}>
                       {p.project_name}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: isSelected ? '#38bdf8' : '#94a3b8' }}>
+                    <span style={{ fontSize: '0.78rem', color: isSelected ? '#38bdf8' : '#94a3b8' }}>
                       ({p.province})
                     </span>
                     <span
@@ -271,7 +293,11 @@ export function StatusPanel({ initialProjects = [] }) {
                       style={{
                         backgroundColor: isSelected ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.08)',
                         color: isSelected ? '#22d3ee' : '#cbd5e1',
-                        border: isSelected ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid rgba(255, 255, 255, 0.12)',
+                        border: isSelected ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid rgba(255, 255, 255, 0.15)',
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
                       }}
                     >
                       {pResp}/{pTgt} ({pPct}%)
