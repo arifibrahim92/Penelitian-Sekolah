@@ -43,6 +43,10 @@ export default function Navbar() {
   const isSurveyPage = pathname.startsWith('/survey');
   const isAdminPage = pathname.startsWith('/admin');
 
+  if (pathname === '/') {
+    return null;
+  }
+
   return (
     <header className="navbar no-print">
       <div className="nav-inner">
