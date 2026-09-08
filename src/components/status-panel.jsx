@@ -148,19 +148,22 @@ export function StatusPanel({ initialProjects = [] }) {
                   className="project-dropdown-btn"
                   style={{
                     backgroundColor: '#0c182c',
-                    border: '1px solid #06b6d4',
+                    border: '1.5px solid #06b6d4',
                     color: '#ffffff',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 6,
+                    gap: 8,
                     padding: '6px 14px',
                     borderRadius: 6,
                     cursor: 'pointer',
+                    boxShadow: '0 0 12px rgba(6, 182, 212, 0.25)',
                   }}
                 >
-                  <Layers className="size-3.5" style={{ color: '#06b6d4' }} />
-                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>Pilih Riset Lain</span>
-                  <ChevronDown className={`size-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} style={{ color: '#38bdf8' }} />
+                  <Layers className="size-4" style={{ color: '#22d3ee' }} />
+                  <span style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.82rem', letterSpacing: '0.02em' }}>
+                    Pilih Riset Lain
+                  </span>
+                  <ChevronDown className={`size-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} style={{ color: '#22d3ee' }} />
                 </button>
 
                 {dropdownOpen && (
