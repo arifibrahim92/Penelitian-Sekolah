@@ -145,9 +145,14 @@ export function StatusPanel({ initialProjects = [] }) {
                 <button
                   type="button"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="inline-flex items-center gap-1.5 rounded-sm border border-cyan/40 bg-cyan/15 px-3 py-1.5 font-mono text-[11px] font-bold text-cyan transition-colors hover:bg-cyan/25 glow-cyan cursor-pointer"
+                  className="project-dropdown-btn"
+                  style={{
+                    backgroundColor: '#0c182c',
+                    border: '1px solid rgba(6, 182, 212, 0.45)',
+                    color: '#38bdf8',
+                  }}
                 >
-                  <Layers className="size-3.5" />
+                  <Layers className="size-3.5" style={{ color: '#06b6d4' }} />
                   <span>Pilih Riset Lain</span>
                   <ChevronDown className={`size-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -158,8 +163,18 @@ export function StatusPanel({ initialProjects = [] }) {
                       className="fixed inset-0 z-40"
                       onClick={() => setDropdownOpen(false)}
                     />
-                    <div className="absolute right-0 top-full z-50 mt-2 w-72 sm:w-80 rounded-md border border-cyan/30 bg-[#0b101d] p-2 shadow-2xl backdrop-blur-md glow-cyan">
-                      <div className="px-2 py-1.5 font-mono text-[10px] font-bold tracking-wider text-muted-foreground border-b border-border/60 mb-1.5">
+                    <div
+                      className="absolute right-0 top-full z-50 mt-2 w-72 sm:w-80 rounded-md p-2 shadow-2xl backdrop-blur-md"
+                      style={{
+                        backgroundColor: '#0a101f',
+                        border: '1px solid rgba(6, 182, 212, 0.45)',
+                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(6, 182, 212, 0.25)',
+                      }}
+                    >
+                      <div
+                        className="px-2 py-1.5 font-mono text-[10px] font-bold tracking-wider border-b mb-1.5"
+                        style={{ color: '#94a3b8', borderColor: 'rgba(255, 255, 255, 0.12)' }}
+                      >
                         DAFTAR RISET AKTIF ({projects.length})
                       </div>
                       <div className="max-h-60 overflow-y-auto space-y-1">
@@ -173,20 +188,21 @@ export function StatusPanel({ initialProjects = [] }) {
                               key={p.id}
                               type="button"
                               onClick={() => handleSelectProject(p.id)}
-                              className={`w-full text-left rounded-sm p-2 font-mono text-xs transition-colors cursor-pointer flex items-center justify-between gap-2 ${
-                                isSelected
-                                  ? 'border border-cyan/40 bg-cyan/15 text-cyan'
-                                  : 'hover:bg-secondary/60 text-foreground'
-                              }`}
+                              className="w-full text-left rounded-sm p-2 font-mono text-xs transition-colors cursor-pointer flex items-center justify-between gap-2"
+                              style={{
+                                backgroundColor: isSelected ? 'rgba(6, 182, 212, 0.2)' : 'transparent',
+                                border: isSelected ? '1px solid rgba(6, 182, 212, 0.5)' : '1px solid transparent',
+                                color: '#ffffff',
+                              }}
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="font-bold truncate">{p.project_name}</div>
-                                <div className="text-[10px] text-muted-foreground">
+                                <div style={{ fontWeight: 700, color: '#ffffff' }}>{p.project_name}</div>
+                                <div style={{ fontSize: '0.75rem', color: isSelected ? '#38bdf8' : '#94a3b8' }}>
                                   {p.province} • {pResp}/{pTgt} siswa ({pPct}%)
                                 </div>
                               </div>
                               {isSelected && (
-                                <CheckCircle2 className="size-4 shrink-0 text-cyan" />
+                                <CheckCircle2 className="size-4 shrink-0" style={{ color: '#06b6d4' }} />
                               )}
                             </button>
                           );
@@ -203,17 +219,20 @@ export function StatusPanel({ initialProjects = [] }) {
         {/* Multiple Projects Switcher Tabs/Pills */}
         {projects.length > 1 && (
           <div className="mt-5 pt-4 border-t border-border/60">
-            <div className="flex items-center justify-between gap-2 mb-2.5">
-              <span className="font-mono text-[11px] font-bold tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
-                <Layers className="size-3.5 text-cyan" />
-                PILIH &amp; GANTI TAMPILAN RISET:
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span
+                className="font-mono text-xs font-bold tracking-[0.14em] flex items-center gap-2"
+                style={{ color: '#e2e8f0' }}
+              >
+                <Layers className="size-4" style={{ color: '#06b6d4' }} />
+                <span>PILIH &amp; GANTI TAMPILAN RISET:</span>
               </span>
-              <span className="hidden sm:inline font-mono text-[10px] text-muted-foreground/80">
-                Klik kartu untuk beralih data
+              <span className="hidden sm:inline font-mono text-[11px]" style={{ color: '#94a3b8' }}>
+                Klik kartu riset untuk beralih data
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               {projects.map((p) => {
                 const isSelected = p.id === currentProject?.id;
                 const pResp = Number(p.total_responses || 0);
@@ -224,25 +243,36 @@ export function StatusPanel({ initialProjects = [] }) {
                     key={p.id}
                     type="button"
                     onClick={() => handleSelectProject(p.id)}
-                    className={`group relative flex items-center gap-2 rounded-sm border px-3 py-1.5 font-mono text-xs font-semibold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-cyan/60 bg-cyan/20 text-cyan glow-cyan shadow-sm'
-                        : 'border-border/60 bg-secondary/40 text-muted-foreground hover:border-cyan/40 hover:bg-secondary hover:text-foreground'
-                    }`}
+                    className={`project-pill ${isSelected ? 'project-pill-active' : ''}`}
+                    style={{
+                      backgroundColor: isSelected ? '#082138' : '#0b1120',
+                      border: isSelected ? '1px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.15)',
+                      color: isSelected ? '#ffffff' : '#e2e8f0',
+                    }}
                   >
                     <span
-                      className={`size-2 rounded-full transition-colors ${
-                        isSelected
-                          ? 'bg-cyan shadow-[0_0_8px_#06b6d4] animate-pulse'
-                          : 'bg-muted-foreground/40 group-hover:bg-muted-foreground'
-                      }`}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: isSelected ? '#06b6d4' : '#64748b',
+                        boxShadow: isSelected ? '0 0 10px #06b6d4' : 'none',
+                        flexShrink: 0,
+                      }}
                     />
-                    <span className="font-bold">{p.project_name}</span>
-                    <span className="text-[10px] opacity-75">({p.province})</span>
+                    <span style={{ fontWeight: 700, color: isSelected ? '#ffffff' : '#e2e8f0' }}>
+                      {p.project_name}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: isSelected ? '#38bdf8' : '#94a3b8' }}>
+                      ({p.province})
+                    </span>
                     <span
-                      className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ${
-                        isSelected ? 'bg-cyan/30 text-cyan' : 'bg-white/5 text-muted-foreground'
-                      }`}
+                      className="project-pill-badge"
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                        color: isSelected ? '#22d3ee' : '#cbd5e1',
+                        border: isSelected ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid rgba(255, 255, 255, 0.12)',
+                      }}
                     >
                       {pResp}/{pTgt} ({pPct}%)
                     </span>
@@ -256,10 +286,10 @@ export function StatusPanel({ initialProjects = [] }) {
         {/* Quota Fulfillment Progress Bar */}
         <div className="mt-5">
           <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
-            <span className="text-muted-foreground">
-              Ketercapaian Kuota Riset <span className="text-foreground font-semibold">({projectName})</span>:
+            <span style={{ color: '#cbd5e1' }}>
+              Ketercapaian Kuota Riset <span className="font-semibold" style={{ color: '#ffffff' }}>({projectName})</span>:
             </span>
-            <span className="font-bold text-phosphor">
+            <span className="font-bold text-phosphor" style={{ color: '#34d399' }}>
               {totalResponses} dari {targetSample} Siswa ({percentTarget}%)
             </span>
           </div>
