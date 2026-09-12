@@ -7,6 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import { initialSeedData } from './seedData.js';
 
 let dbInstance = null;
@@ -446,8 +447,7 @@ export function getDb() {
     process.env.NETLIFY_BLOBS_CONTEXT ||
     process.env.NETLIFY_FUNCTIONS_TOKEN ||
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.VERCEL ||
-    process.env.NODE_ENV === 'production'
+    process.env.VERCEL
   );
 
   let targetDb;
@@ -461,7 +461,6 @@ export function getDb() {
       targetDb = dbInstance;
     } else {
       try {
-        const { createRequire } = require('module');
         const localRequire = createRequire(import.meta.url);
         const Database = localRequire('better-sqlite3');
         const localDataDir = path.join(process.cwd(), 'data');
@@ -477,7 +476,8 @@ export function getDb() {
         initTables(db);
         dbInstance = db;
         targetDb = dbInstance;
-      } catch {
+      } catch (err) {
+        console.warn('Native SQLite unavailable, using resilient fallback store:', err?.message);
         dbInstance = createFallbackDatabase();
         targetDb = dbInstance;
       }
